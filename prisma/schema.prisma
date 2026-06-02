@@ -1,0 +1,748 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum CompanyStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  SUSPENDED
+  TRIAL
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id                  String               @id @default(uuid())
+  name                String
+  erpType             String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  estimations         Estimation[]
+  inventoryItems      InventoryItem[]
+  status    CompanyStatus  @default(PENDING)
+  invoices            Invoice[]
+  payments            Payment[]
+  procurementRequests ProcurementRequest[]
+  projects            Project[]
+  purchaseOrders      PurchaseOrder[]
+  roles               Role[]
+  stocks              Stock[]
+  stockMovements      StockMovement[]
+  transactions        Transaction[]
+  units               Unit[]
+  users               User[]
+  vendors             Vendor[]
+  warehouses          Warehouse[]
+  leads               Lead[]
+  customers           Customer[]
+  bookings            Booking[]
+  wbsTemplates       WBSTemplate[]
+  builderInvoices    BuilderInvoice[]
+  builderPayments    BuilderPayment[]
+  workers            Worker[]
+  attendances        Attendance[]
+  equipment          Equipment[]
+  maintenanceLogs    MaintenanceLog[]
+  equipmentDeployments EquipmentDeployment[]
+  fuelLogs           FuelLog[]
+  attendanceUploads  AttendanceUpload[]
+  contracts          Contract[]
+  notifications      Notification[]
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  email               String               @unique
+  password            String
+  firstName           String
+  lastName            String
+  isActive            Boolean              @default(true)
+  refreshToken        String?              @unique
+  resetPasswordToken  String?              @unique
+  resetPasswordExpire DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  companyId           String?
+  roleId              String?
+  permissions         String[]             @default([])
+  approvedRequests    ProcurementRequest[] @relation("ApprovedBy")
+  requestedRequests   ProcurementRequest[] @relation("RequestedBy")
+  projectMembers      ProjectMember[]
+  company             Company?             @relation(fields: [companyId], references: [id])
+  role                Role?                @relation(fields: [roleId], references: [id])
+  
+  // Estimation Approvals
+  requestedEstimations    EstimationVersion[] @relation("EstimationRequestedBy")
+  designatedForEstimations EstimationVersion[] @relation("EstimationDesignatedApprover")
+  approvedEstimations     EstimationVersion[] @relation("EstimationApprovedBy")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  User        User[]
+}
+
+model Project {
+  id                  String               @id @default(uuid())
+  name                String
+  description         String?
+  status              String               @default("PLANNED")
+  budget              Float?
+  area                Float?               // Total area in sq.ft for cost/sq.ft calculation
+  clientName          String?              // Client or owner name for this project
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  companyId           String
+  estimations         Estimation[]
+  invoices            Invoice[]
+  procurementRequests ProcurementRequest[]
+  company             Company              @relation(fields: [companyId], references: [id])
+  members             ProjectMember[]
+  progressUpdates     ProjectProgress[]
+  tasks               ProjectTask[]
+  units               Unit[]
+  leads               Lead[]
+  bookings            Booking[]
+  workers             Worker[]
+  attendances         Attendance[]
+  equipment           Equipment[]
+  materialMovements   StockMovement[]    @relation("ProjectMaterialMovements")
+  equipmentDeployments EquipmentDeployment[]
+  fuelLogs           FuelLog[]
+  attendanceUploads  AttendanceUpload[]
+  contracts          Contract[]
+}
+
+model ProjectTask {
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  wbsCode      String?       // e.g., 1.1, 1.1.2
+  startDate    DateTime?
+  endDate      DateTime?
+  progress     Float         @default(0)
+  weightage    Float         @default(0)
+  status       String        @default("PENDING")
+  projectId    String
+  parentId     String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  isMilestone  Boolean       @default(false)
+  milestoneTriggerValue Int? @default(100)
+  imageUrl     String?
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentTask   ProjectTask?  @relation("SubTasks", fields: [parentId], references: [id])
+  subTasks     ProjectTask[] @relation("SubTasks")
+  paymentMilestones PaymentMilestone[]
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  role      String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+}
+
+model ProjectProgress {
+  id           String   @id @default(uuid())
+  projectId    String
+  percentage   Float
+  statusUpdate String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  project      Project  @relation(fields: [projectId], references: [id])
+}
+
+model InventoryItem {
+  id              String           @id @default(uuid())
+  companyId       String
+  name            String
+  sku             String?
+  category        String?
+  unit            String
+  minStock        Float            @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  company         Company          @relation(fields: [companyId], references: [id])
+  stocks          Stock[]
+  stockMovements  StockMovement[]
+  estimationItems EstimationItem[]
+}
+
+model Warehouse {
+  id             String          @id @default(uuid())
+  companyId      String
+  name           String
+  location       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  stocks         Stock[]
+  stockMovements StockMovement[]
+  company        Company         @relation(fields: [companyId], references: [id])
+}
+
+model Stock {
+  id              String        @id @default(uuid())
+  companyId       String
+  warehouseId     String
+  inventoryItemId String
+  quantity        Float         @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  company         Company       @relation(fields: [companyId], references: [id])
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+
+  @@unique([warehouseId, inventoryItemId])
+}
+
+model StockMovement {
+  id              String         @id @default(uuid())
+  companyId       String
+  warehouseId     String
+  inventoryItemId String
+  quantity        Float
+  type            String
+  reference       String?
+  notes           String?
+  projectId       String?        // Bridge: link material issue to a project
+  purchaseOrderId String?        // Bridge: link GRN to a purchase order
+  createdAt       DateTime       @default(now())
+  company         Company        @relation(fields: [companyId], references: [id])
+  inventoryItem   InventoryItem  @relation(fields: [inventoryItemId], references: [id])
+  warehouse       Warehouse      @relation(fields: [warehouseId], references: [id])
+  project         Project?       @relation("ProjectMaterialMovements", fields: [projectId], references: [id])
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+}
+
+model Vendor {
+  id             String          @id @default(uuid())
+  companyId      String
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  purchaseOrders PurchaseOrder[]
+  company        Company         @relation(fields: [companyId], references: [id])
+}
+
+model ProcurementRequest {
+  id                  String            @id @default(uuid())
+  companyId           String
+  projectId           String
+  title               String
+  description         String?
+  status              String            @default("PENDING")
+  requestedById       String
+  approvedById        String?
+  approvalDate        DateTime?
+  estimationVersionId String?           // Bridge: link back to the BOQ that generated this
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  items               ProcurementItem[]
+  approvedBy          User?             @relation("ApprovedBy", fields: [approvedById], references: [id])
+  company             Company           @relation(fields: [companyId], references: [id])
+  project             Project           @relation(fields: [projectId], references: [id])
+  requestedBy         User              @relation("RequestedBy", fields: [requestedById], references: [id])
+  estimationVersion   EstimationVersion? @relation(fields: [estimationVersionId], references: [id])
+  purchaseOrders      PurchaseOrder[]
+}
+
+model ProcurementItem {
+  id            String             @id @default(uuid())
+  requestId     String
+  description   String
+  quantity      Float
+  unit          String
+  estimatedRate Float?
+  amount        Float?
+  request       ProcurementRequest @relation(fields: [requestId], references: [id])
+}
+
+model PurchaseOrder {
+  id             String              @id @default(uuid())
+  companyId      String
+  vendorId       String
+  requestId      String?
+  poNumber       String
+  totalAmount    Float
+  status         String              @default("DRAFT") // DRAFT, SENT, RECEIVED, CANCELLED
+  receivedDate   DateTime?           // Bridge: when goods were received
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  company        Company             @relation(fields: [companyId], references: [id])
+  request        ProcurementRequest? @relation(fields: [requestId], references: [id])
+  vendor         Vendor              @relation(fields: [vendorId], references: [id])
+  items          PurchaseOrderItem[]
+  stockMovements StockMovement[]     // Bridge: GRN movements linked to this PO
+
+  @@unique([companyId, poNumber])
+}
+
+model PurchaseOrderItem {
+  id          String        @id @default(uuid())
+  poId        String
+  description String
+  quantity    Float
+  unit        String
+  rate        Float
+  amount      Float
+  po          PurchaseOrder @relation(fields: [poId], references: [id])
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  companyId     String
+  projectId     String
+  invoiceNumber String
+  clientName    String
+  totalAmount   Float
+  paidAmount    Float         @default(0)
+  dueAmount     Float
+  dueDate       DateTime
+  status        String        @default("DRAFT")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  company       Company       @relation(fields: [companyId], references: [id])
+  project       Project       @relation(fields: [projectId], references: [id])
+  items         InvoiceItem[]
+  payments      Payment[]
+
+  @@unique([companyId, invoiceNumber])
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Float
+  unitPrice   Float
+  amount      Float
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model Transaction {
+  id          String    @id @default(uuid())
+  companyId   String
+  type        String
+  category    String?
+  amount      Float
+  date        DateTime  @default(now())
+  description String?
+  referenceId String?
+  createdAt   DateTime  @default(now())
+  payments    Payment[]
+  company     Company   @relation(fields: [companyId], references: [id])
+}
+
+model Payment {
+  id            String       @id @default(uuid())
+  companyId     String
+  invoiceId     String?
+  transactionId String?
+  amount        Float
+  paymentDate   DateTime     @default(now())
+  method        String?
+  createdAt     DateTime     @default(now())
+  company       Company      @relation(fields: [companyId], references: [id])
+  invoice       Invoice?     @relation(fields: [invoiceId], references: [id])
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+}
+
+model Estimation {
+  id        String              @id @default(uuid())
+  companyId String
+  projectId String
+  status    String              @default("ACTIVE")
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  company   Company             @relation(fields: [companyId], references: [id])
+  project   Project             @relation(fields: [projectId], references: [id])
+  versions  EstimationVersion[]
+}
+
+model EstimationVersion {
+  id                  String           @id @default(uuid())
+  estimationId        String
+  versionNumber       Int
+  title               String
+  description         String?
+  totalAmount         Float            @default(0)
+  status              String           @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED
+  
+  // Approval Workflow
+  requestedById       String?
+  designatedApproverId String?
+  approvedById        String?
+  approvalDate        DateTime?
+  approvalNotes       String?
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  items               EstimationItem[]
+  estimation          Estimation       @relation(fields: [estimationId], references: [id])
+  
+  requestedBy         User?            @relation("EstimationRequestedBy", fields: [requestedById], references: [id])
+  designatedApprover  User?            @relation("EstimationDesignatedApprover", fields: [designatedApproverId], references: [id])
+  approvedBy          User?            @relation("EstimationApprovedBy", fields: [approvedById], references: [id])
+  procurementRequests ProcurementRequest[]
+}
+
+model EstimationItem {
+  id                  String            @id @default(uuid())
+  estimationVersionId String
+  inventoryItemId     String?           // Link to Material Catalog
+  description         String
+  quantity            Float
+  unit                String
+  rate                Float
+  amount              Float
+  version             EstimationVersion @relation(fields: [estimationVersionId], references: [id])
+  inventoryItem       InventoryItem?    @relation(fields: [inventoryItemId], references: [id])
+}
+
+model Unit {
+  id          String         @id @default(uuid())
+  companyId   String
+  projectId   String
+  unitNumber  String
+  floorNumber Int?           @default(0)
+  bhk         String?        // e.g., 2 BHK, 3 BHK
+  type        String?        // e.g., Apartment, Villa, Penthouse
+  area        Float?         // Sq.Ft
+  facing      String?        // North, East, etc.
+  status      String         @default("AVAILABLE") // AVAILABLE, BOOKED, SOLD, BLOCKED
+  price       Float
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  company     Company        @relation(fields: [companyId], references: [id])
+  project     Project        @relation(fields: [projectId], references: [id])
+  history     UnitHistory[]
+  pricingLogs UnitPriceLog[]
+  bookings    Booking[]
+}
+
+model Lead {
+  id          String    @id @default(uuid())
+  companyId   String
+  projectId   String?
+  name        String
+  email       String?
+  phone       String?
+  status      String    @default("NEW") // NEW, CONTACTED, VISIT, NEGOTIATION, WON, LOST
+  source      String?   // Website, Ad, Referral
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id])
+  project     Project?  @relation(fields: [projectId], references: [id])
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  companyId   String
+  name        String
+  email       String?
+  phone       String?
+  panCard     String?
+  aadhaar     String?
+  address     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id])
+  bookings    Booking[]
+}
+
+model Booking {
+  id          String    @id @default(uuid())
+  companyId   String
+  projectId   String
+  unitId      String
+  customerId  String
+  bookingDate DateTime  @default(now())
+  totalAmount Float
+  paidAmount  Float     @default(0)
+  status      String    @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id])
+  project     Project   @relation(fields: [projectId], references: [id])
+  unit        Unit      @relation(fields: [unitId], references: [id])
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  paymentMilestones PaymentMilestone[]
+  builderInvoices   BuilderInvoice[]
+  builderPayments   BuilderPayment[]
+}
+
+model UnitHistory {
+  id          String   @id @default(uuid())
+  unitId      String
+  fromStatus  String
+  toStatus    String
+  changedById String
+  notes       String?
+  createdAt   DateTime @default(now())
+  unit        Unit     @relation(fields: [unitId], references: [id])
+}
+
+model UnitPriceLog {
+  id          String   @id @default(uuid())
+  unitId      String
+  oldPrice    Float
+  newPrice    Float
+  changedById String
+  createdAt   DateTime @default(now())
+  unit        Unit     @relation(fields: [unitId], references: [id])
+}model WBSTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  erpType     String   @default("BUILDER") // For which ERP this template is intended
+  structure   Json     // Stored as a nested JSON of tasks
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PaymentMilestone {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  amountPercent   Float    // e.g., 10 for 10%
+  bookingId       String
+  booking         Booking  @relation(fields: [bookingId], references: [id])
+  taskId          String?  // Link to the construction task
+  task            ProjectTask? @relation(fields: [taskId], references: [id])
+  isTriggered     Boolean  @default(false)
+  triggeredAt     DateTime?
+  status          String   @default("PENDING") // PENDING, INVOICED, PAID
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model BuilderInvoice {
+  id            String   @id @default(uuid())
+  companyId     String
+  bookingId     String
+  invoiceNumber String
+  description   String?
+  totalAmount   Float
+  taxAmount     Float    @default(0)
+  grandTotal    Float
+  paidAmount    Float    @default(0)
+  dueAmount     Float
+  dueDate       DateTime
+  status        String   @default("UNPAID") // UNPAID, PARTIAL, PAID
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  company       Company  @relation(fields: [companyId], references: [id])
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  payments      BuilderPayment[]
+}
+
+model BuilderPayment {
+  id            String   @id @default(uuid())
+  companyId     String
+  bookingId     String
+  invoiceId     String?
+  amount        Float
+  paymentDate   DateTime @default(now())
+  paymentMethod String
+  reference     String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  company       Company  @relation(fields: [companyId], references: [id])
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  invoice       BuilderInvoice? @relation(fields: [invoiceId], references: [id])
+}
+
+model Worker {
+  id          String       @id @default(uuid())
+  companyId   String
+  projectId   String?
+  firstName   String
+  lastName    String
+  phone       String?
+  role        String       // Mason, Electrician, Helper, Carpenter, Plumber, etc.
+  dailyWage   Float
+  status      String       @default("ACTIVE") // ACTIVE, INACTIVE
+  joinDate    DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  company     Company      @relation(fields: [companyId], references: [id])
+  project     Project?     @relation(fields: [projectId], references: [id])
+  attendance  Attendance[]
+}
+
+model Attendance {
+  id          String   @id @default(uuid())
+  companyId   String
+  workerId    String
+  projectId   String?
+  date        DateTime
+  status      String   // PRESENT, ABSENT, HALF_DAY
+  wageAmount  Float    @default(0)
+  overtimeHrs Float    @default(0)
+  notes       String?
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id])
+  worker      Worker   @relation(fields: [workerId], references: [id])
+  project     Project? @relation(fields: [projectId], references: [id])
+
+  @@unique([workerId, date])
+}
+
+model Equipment {
+  id                String           @id @default(uuid())
+  companyId         String
+  projectId         String?
+  name              String
+  type              String           // Excavator, Crane, Generator, JCB, etc.
+  serialNumber      String?          @unique
+  ownership         String           @default("OWNED") // OWNED, RENTED
+  status            String           @default("OPERATIONAL") // OPERATIONAL, MAINTENANCE, IDLE, REPAIR
+  purchaseDate      DateTime?
+  purchaseCost      Float?           // For OWNED: buying cost
+  assetLifeYears    Int?             // Expected asset life in years (for depreciation)
+  depreciationMethod String?         // SLM (Straight Line) or WDV (Written Down Value)
+  hourlyRate        Float?           // For RENTED: hourly rate option
+  dailyRentalRate   Float?
+  lastMaintenance   DateTime?
+  nextMaintenance   DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  company           Company          @relation(fields: [companyId], references: [id])
+  project           Project?         @relation(fields: [projectId], references: [id])
+  maintenanceLogs   MaintenanceLog[]
+  deployments       EquipmentDeployment[]
+  fuelLogs          FuelLog[]
+}
+
+model MaintenanceLog {
+  id              String    @id @default(uuid())
+  companyId       String
+  equipmentId     String
+  date            DateTime  @default(now())
+  type            String    // ROUTINE, REPAIR, OVERHAUL
+  description     String
+  cost            Float     @default(0)
+  performedBy     String?
+  nextDueDate     DateTime?
+  createdAt       DateTime  @default(now())
+  company         Company   @relation(fields: [companyId], references: [id])
+  equipment       Equipment @relation(fields: [equipmentId], references: [id])
+}
+
+// ─── Equipment Deployment Log ─────────────────────────────────────────────
+// Tracks which equipment is deployed to which project, with date range and cost
+model EquipmentDeployment {
+  id              String    @id @default(uuid())
+  companyId       String
+  equipmentId     String
+  projectId       String
+  startDate       DateTime
+  endDate         DateTime?
+  dailyRate       Float     @default(0)  // Applicable rate for this deployment
+  hoursPerDay     Float     @default(8)
+  totalCost       Float     @default(0)  // Calculated: days × rate
+  status          String    @default("ACTIVE") // ACTIVE, COMPLETED, TRANSFERRED
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id])
+  equipment       Equipment @relation(fields: [equipmentId], references: [id])
+  project         Project   @relation(fields: [projectId], references: [id])
+}
+
+// ─── Fuel / Running Cost Log ──────────────────────────────────────────────
+model FuelLog {
+  id              String    @id @default(uuid())
+  companyId       String
+  equipmentId     String
+  projectId       String?
+  date            DateTime  @default(now())
+  fuelType        String    @default("DIESEL") // DIESEL, PETROL, ELECTRIC
+  quantity        Float     // Litres
+  costPerUnit     Float
+  totalCost       Float
+  operatorName    String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  company         Company   @relation(fields: [companyId], references: [id])
+  equipment       Equipment @relation(fields: [equipmentId], references: [id])
+  project         Project?  @relation(fields: [projectId], references: [id])
+}
+
+// ─── Attendance Upload (Excel audit trail) ─────────────────────────────────
+model AttendanceUpload {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  uploadedById    String
+  fileName        String
+  date            DateTime  // Attendance date
+  workersMatched  Int       @default(0)
+  totalWage       Float     @default(0)
+  status          String    @default("PROCESSED") // PROCESSED, FAILED
+  createdAt       DateTime  @default(now())
+  company         Company   @relation(fields: [companyId], references: [id])
+  project         Project   @relation(fields: [projectId], references: [id])
+}
+
+// ─── Contract Management ──────────────────────────────────────────────────
+model Contract {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String?
+  contractNumber  String
+  title           String
+  partyName       String    // Sub-contractor / Client name
+  partyType       String    @default("SUB_CONTRACTOR") // SUB_CONTRACTOR, CLIENT, SUPPLIER
+  type            String    @default("WORK_ORDER") // WORK_ORDER, RATE_CONTRACT, LUMP_SUM
+  description     String?
+  totalValue      Float     @default(0)
+  paidAmount      Float     @default(0)
+  retentionPercent Float    @default(0) // Retention %
+  retentionAmount Float     @default(0)
+  startDate       DateTime?
+  endDate         DateTime?
+  status          String    @default("DRAFT") // DRAFT, ACTIVE, COMPLETED, TERMINATED
+  terms           String?   // Terms & conditions text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id])
+  project         Project?  @relation(fields: [projectId], references: [id])
+}
+
+// ─── Notification Engine ──────────────────────────────────────────────────
+model Notification {
+  id              String    @id @default(uuid())
+  companyId       String
+  userId          String?   // Target user (null = all company users)
+  type            String    // OVERDUE_INVOICE, LOW_STOCK, PENDING_APPROVAL, IDLE_EQUIPMENT, PAYROLL_DUE
+  title           String
+  message         String
+  isRead          Boolean   @default(false)
+  referenceId     String?   // Link to the related entity (invoiceId, equipmentId, etc.)
+  referenceType   String?   // INVOICE, EQUIPMENT, PROCUREMENT, ATTENDANCE
+  createdAt       DateTime  @default(now())
+  company         Company   @relation(fields: [companyId], references: [id])
+}
