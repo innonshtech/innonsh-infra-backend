@@ -29,7 +29,7 @@ export class AuthService {
         firstName: data.firstName, 
         lastName: data.lastName 
       },
-      { name: 'SuperAdmin', permissions: ['*'] }
+      { name: 'Admin', permissions: ['*'] }
     );
 
     const tokenPayload = this.createTokenPayload(user);

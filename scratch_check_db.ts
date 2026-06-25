@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from './src/config/prisma.config';
+import dotenv from 'dotenv';
+dotenv.config();
 
 async function main() {
   try {
@@ -15,6 +15,21 @@ async function main() {
     console.log('--- DATABASE STATUS ---');
     console.log(JSON.stringify(counts, null, 2));
     console.log('------------------------');
+
+    const equipmentList = await (prisma as any).equipment.findMany({
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        serialNumber: true,
+        ownership: true,
+        status: true,
+        companyId: true,
+      }
+    });
+    console.log('--- EQUIPMENT LIST ---');
+    console.log(JSON.stringify(equipmentList, null, 2));
+    console.log('-----------------------');
   } catch (err) {
     console.error('Error checking DB:', err);
   } finally {
@@ -23,3 +38,4 @@ async function main() {
 }
 
 main();
+

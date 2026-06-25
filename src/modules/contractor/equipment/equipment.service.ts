@@ -17,6 +17,40 @@ export class EquipmentService {
   }
 
   async createEquipment(companyId: string, data: any) {
+    // Sanitize empty strings and parse values to correct types
+    if (data.serialNumber === '') data.serialNumber = null;
+    if (data.projectId === '') data.projectId = null;
+
+    if (data.purchaseDate && typeof data.purchaseDate === 'string' && data.purchaseDate.trim() !== '') {
+      data.purchaseDate = new Date(data.purchaseDate);
+    } else {
+      data.purchaseDate = null;
+    }
+
+    if (data.purchaseCost === '' || data.purchaseCost === null || data.purchaseCost === undefined) {
+      data.purchaseCost = null;
+    } else if (typeof data.purchaseCost === 'string') {
+      data.purchaseCost = parseFloat(data.purchaseCost) || null;
+    }
+
+    if (data.assetLifeYears === '' || data.assetLifeYears === null || data.assetLifeYears === undefined) {
+      data.assetLifeYears = null;
+    } else if (typeof data.assetLifeYears === 'string') {
+      data.assetLifeYears = parseInt(data.assetLifeYears) || null;
+    }
+
+    if (data.dailyRentalRate === '' || data.dailyRentalRate === null || data.dailyRentalRate === undefined) {
+      data.dailyRentalRate = null;
+    } else if (typeof data.dailyRentalRate === 'string') {
+      data.dailyRentalRate = parseFloat(data.dailyRentalRate) || null;
+    }
+
+    if (data.hourlyRate === '' || data.hourlyRate === null || data.hourlyRate === undefined) {
+      data.hourlyRate = null;
+    } else if (typeof data.hourlyRate === 'string') {
+      data.hourlyRate = parseFloat(data.hourlyRate) || null;
+    }
+
     const equipment = await this.repo.create({ ...data, companyId });
 
     // If OWNED and has purchase cost, create a one-time EXPENSE transaction
@@ -28,7 +62,7 @@ export class EquipmentService {
           category: 'EQUIPMENT_PURCHASE',
           amount: data.purchaseCost,
           description: `Equipment Purchase - ${data.name} (${data.type})`,
-          date: data.purchaseDate ? new Date(data.purchaseDate) : new Date(),
+          date: data.purchaseDate ? data.purchaseDate : new Date(),
           referenceId: equipment.id
         }
       });
@@ -38,6 +72,40 @@ export class EquipmentService {
   }
 
   async updateEquipment(id: string, companyId: string, data: any) {
+    // Sanitize empty strings and parse values to correct types
+    if (data.serialNumber === '') data.serialNumber = null;
+    if (data.projectId === '') data.projectId = null;
+
+    if (data.purchaseDate && typeof data.purchaseDate === 'string' && data.purchaseDate.trim() !== '') {
+      data.purchaseDate = new Date(data.purchaseDate);
+    } else if (data.purchaseDate === '') {
+      data.purchaseDate = null;
+    }
+
+    if (data.purchaseCost === '') {
+      data.purchaseCost = null;
+    } else if (typeof data.purchaseCost === 'string') {
+      data.purchaseCost = parseFloat(data.purchaseCost) || null;
+    }
+
+    if (data.assetLifeYears === '') {
+      data.assetLifeYears = null;
+    } else if (typeof data.assetLifeYears === 'string') {
+      data.assetLifeYears = parseInt(data.assetLifeYears) || null;
+    }
+
+    if (data.dailyRentalRate === '') {
+      data.dailyRentalRate = null;
+    } else if (typeof data.dailyRentalRate === 'string') {
+      data.dailyRentalRate = parseFloat(data.dailyRentalRate) || null;
+    }
+
+    if (data.hourlyRate === '') {
+      data.hourlyRate = null;
+    } else if (typeof data.hourlyRate === 'string') {
+      data.hourlyRate = parseFloat(data.hourlyRate) || null;
+    }
+
     return this.repo.update(id, companyId, data);
   }
 
