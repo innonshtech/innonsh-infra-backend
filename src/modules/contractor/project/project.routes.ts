@@ -232,6 +232,8 @@ router.get('/:id/progress', authMiddleware, contractorGuard, allowPermissions(['
 // --- Task / WBS Routes ---
 const taskController = new TaskController();
 
+router.get('/tasks/my-tasks', authMiddleware, contractorGuard, taskController.getMyTasks);
+
 /**
  * @swagger
  * /api/v1/contractor/projects/{projectId}/tasks:

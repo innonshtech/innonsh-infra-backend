@@ -25,6 +25,22 @@ export class TaskService {
       where: { projectId },
       orderBy: { wbsCode: 'asc' },
       include: {
+        assignedToUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          }
+        },
+        assignedToWorker: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+          }
+        },
         _count: {
           select: { subTasks: true },
         },
@@ -32,6 +48,25 @@ export class TaskService {
     });
 
     return this.buildTaskTree(tasks);
+  }
+
+  async getMyTasks(userId: string) {
+    return (prisma as any).projectTask.findMany({
+      where: {
+        assignedUserId: userId,
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        endDate: 'asc',
+      },
+    });
   }
 
   private buildTaskTree(tasks: any[], parentId: string | null = null): TaskWithSubtasks[] {
@@ -71,6 +106,8 @@ export class TaskService {
 
     if (updatedTask.parentId && (data.progress !== undefined || data.weightage !== undefined)) {
       await this.recalculateParentProgress(updatedTask.parentId);
+    } else if (!updatedTask.parentId && (data.progress !== undefined || data.weightage !== undefined)) {
+      await this.updateProjectProgress(updatedTask.projectId);
     }
 
     return updatedTask;
@@ -146,16 +183,9 @@ export class TaskService {
 
     if (topLevelTasks.length === 0) return;
 
-    const totalWeightage = topLevelTasks.reduce((sum: number, t: any) => sum + (t.weightage || 0), 0);
-    let projectProgress = 0;
-
-    if (totalWeightage > 0) {
-      projectProgress = topLevelTasks.reduce((sum: number, t: any) => {
-        return sum + (t.progress * (t.weightage / totalWeightage));
-      }, 0);
-    } else {
-      projectProgress = topLevelTasks.reduce((sum: number, t: any) => sum + t.progress, 0) / topLevelTasks.length;
-    }
+    const projectProgress = topLevelTasks.reduce((sum: number, t: any) => {
+      return sum + ((t.progress || 0) * ((t.weightage || 0) / 100));
+    }, 0);
 
     await prisma.projectProgress.create({
       data: {

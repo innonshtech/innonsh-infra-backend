@@ -20,6 +20,7 @@ import builderLegalRoutes from '../modules/builder/legal/legal.routes';
 import builderReportRoutes from '../modules/builder/reports/reports.routes';
 import usersRoutes from '../modules/users/users.routes';
 import companyRoutes from '../modules/company/company.routes';
+import organizationRoutes from '../modules/organization/organization.routes';
 
 
 
@@ -52,5 +53,6 @@ router.use('/builder/lease', builderLeaseRoutes);
 router.use('/builder/legal', builderLegalRoutes);
 router.use('/builder', builderReportRoutes); // Dashboard and reports
 router.use('/superadmin', companyRoutes);
+router.use('/organization', organizationRoutes);
 
 export default router;

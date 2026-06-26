@@ -11,6 +11,8 @@ export const createTaskSchema = z.object({
   isMilestone: z.boolean().default(false),
   milestoneTriggerValue: z.number().min(0).max(100).optional().default(100),
   imageUrl: z.string().url().optional().or(z.string().length(0)),
+  assignedUserId: z.string().uuid().optional().nullable(),
+  assignedWorkerId: z.string().uuid().optional().nullable(),
 });
 
 export const updateTaskSchema = z.object({
@@ -25,6 +27,10 @@ export const updateTaskSchema = z.object({
   isMilestone: z.boolean().optional(),
   milestoneTriggerValue: z.number().min(0).max(100).optional(),
   imageUrl: z.string().url().optional().or(z.string().length(0)),
+  assignedUserId: z.string().uuid().optional().nullable(),
+  assignedWorkerId: z.string().uuid().optional().nullable(),
+  completionNotes: z.string().optional().nullable(),
+  completionImageUrl: z.string().optional().nullable(),
 });
 
 export type CreateTaskDTO = z.infer<typeof createTaskSchema>;

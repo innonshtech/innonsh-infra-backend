@@ -43,4 +43,13 @@ export class TaskController {
       next(error);
     }
   };
+
+  getMyTasks = async (req: any, res: Response, next: NextFunction) => {
+    try {
+      const tasks = await this.taskService.getMyTasks(req.user.id);
+      sendResponse(res, 200, 'Assigned tasks fetched successfully', tasks);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

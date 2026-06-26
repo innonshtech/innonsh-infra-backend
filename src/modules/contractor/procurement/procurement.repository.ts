@@ -94,21 +94,32 @@ export class ProcurementRepository {
 
   async createPurchaseOrder(data: CreatePurchaseOrderDTO & { companyId: string, poNumber: string }) {
     const totalAmount = data.items.reduce((sum, item) => sum + (item.quantity * item.rate), 0);
-    return (prisma as any).purchaseOrder.create({
-      data: {
-        companyId: data.companyId,
-        vendorId: data.vendorId,
-        requestId: data.requestId,
-        poNumber: data.poNumber,
-        totalAmount,
-        items: {
-          create: data.items.map(item => ({
-            ...item,
-            amount: item.quantity * item.rate
-          }))
-        }
-      },
-      include: { items: true, vendor: true }
+    return (prisma as any).$transaction(async (tx: any) => {
+      const po = await tx.purchaseOrder.create({
+        data: {
+          companyId: data.companyId,
+          vendorId: data.vendorId,
+          requestId: data.requestId,
+          poNumber: data.poNumber,
+          totalAmount,
+          items: {
+            create: data.items.map((item: any) => ({
+              ...item,
+              amount: item.quantity * item.rate
+            }))
+          }
+        },
+        include: { items: true, vendor: true }
+      });
+
+      if (data.requestId) {
+        await tx.procurementRequest.updateMany({
+          where: { id: data.requestId, companyId: data.companyId },
+          data: { status: 'ORDERED' }
+        });
+      }
+
+      return po;
     });
   }
 

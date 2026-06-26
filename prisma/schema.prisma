@@ -51,6 +51,28 @@ model Company {
   attendanceUploads  AttendanceUpload[]
   contracts          Contract[]
   notifications      Notification[]
+
+  // Organization Module Additions
+  logo                String?
+  code                String?
+  gstNumber           String?
+  panNumber           String?
+  regNumber           String?
+  ownerName           String?
+  email               String?
+  phone               String?
+  website             String?
+  address             String?
+  city                String?
+  state               String?
+  country             String?
+  pincode             String?
+
+  branches            Branch[]
+  departments         Department[]
+  designations        Designation[]
+  documents           CompanyDocument[]
+  settings            CompanySetting?
 }
 
 model User {
@@ -78,6 +100,7 @@ model User {
   requestedEstimations    EstimationVersion[] @relation("EstimationRequestedBy")
   designatedForEstimations EstimationVersion[] @relation("EstimationDesignatedApprover")
   approvedEstimations     EstimationVersion[] @relation("EstimationApprovedBy")
+  assignedTasks           ProjectTask[]       @relation("UserTasks")
 }
 
 model Role {
@@ -139,10 +162,17 @@ model ProjectTask {
   isMilestone  Boolean       @default(false)
   milestoneTriggerValue Int? @default(100)
   imageUrl     String?
+  completionNotes     String?
+  completionImageUrl  String?
   project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parentTask   ProjectTask?  @relation("SubTasks", fields: [parentId], references: [id])
   subTasks     ProjectTask[] @relation("SubTasks")
   paymentMilestones PaymentMilestone[]
+  
+  assignedUserId   String?
+  assignedToUser   User?         @relation("UserTasks", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedWorkerId String?
+  assignedToWorker Worker?       @relation("WorkerTasks", fields: [assignedWorkerId], references: [id], onDelete: SetNull)
 }
 
 model ProjectMember {
@@ -590,6 +620,7 @@ model Worker {
   company     Company      @relation(fields: [companyId], references: [id])
   project     Project?     @relation(fields: [projectId], references: [id])
   attendance  Attendance[]
+  assignedTasks ProjectTask[] @relation("WorkerTasks")
 }
 
 model Attendance {
@@ -745,4 +776,65 @@ model Notification {
   referenceType   String?   // INVOICE, EQUIPMENT, PROCUREMENT, ATTENDANCE
   createdAt       DateTime  @default(now())
   company         Company   @relation(fields: [companyId], references: [id])
+}
+
+// ─── Organization Module Models ──────────────────────────────────────────
+model Branch {
+  id              String    @id @default(uuid())
+  companyId       String
+  name            String
+  code            String
+  address         String
+  city            String
+  state           String
+  phone           String
+  email           String
+  managerName     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Department {
+  id              String    @id @default(uuid())
+  companyId       String
+  name            String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model Designation {
+  id              String    @id @default(uuid())
+  companyId       String
+  name            String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model CompanyDocument {
+  id              String    @id @default(uuid())
+  companyId       String
+  name            String
+  type            String
+  url             String
+  expiryDate      DateTime?
+  status          String    @default("ACTIVE")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model CompanySetting {
+  id              String    @id @default(uuid())
+  companyId       String    @unique
+  currency        String    @default("INR")
+  timeZone        String    @default("IST")
+  financialYear   String    @default("2026-2027")
+  dateFormat      String    @default("DD/MM/YYYY")
+  numberFormat    String    @default("INR")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }

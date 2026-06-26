@@ -27,6 +27,10 @@ export class ProjectRepository {
         _count: {
           select: { members: true },
         },
+        progressUpdates: {
+          orderBy: { updatedAt: 'desc' },
+          take: 1,
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
