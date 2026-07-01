@@ -229,6 +229,30 @@ router.post('/:id/progress', authMiddleware, contractorGuard, allowPermissions([
  */
 router.get('/:id/progress', authMiddleware, contractorGuard, allowPermissions(['projects.view', 'projects.manage']), controller.getProjectProgress);
 
+// --- Project Planning Routes ---
+router.get('/:projectId/planning', authMiddleware, contractorGuard, allowPermissions(['projects.view', 'projects.manage']), controller.getPlanning);
+router.patch('/:projectId/planning', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.updatePlanning);
+
+// Phases CRUD
+router.post('/:projectId/planning/phases', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.createPhase);
+router.patch('/:projectId/planning/phases/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.updatePhase);
+router.delete('/:projectId/planning/phases/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.deletePhase);
+
+// Milestones CRUD
+router.post('/:projectId/planning/milestones', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.createMilestone);
+router.patch('/:projectId/planning/milestones/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.updateMilestone);
+router.delete('/:projectId/planning/milestones/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.deleteMilestone);
+
+// Resource Plans CRUD
+router.post('/:projectId/planning/resources', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.createResourcePlan);
+router.patch('/:projectId/planning/resources/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.updateResourcePlan);
+router.delete('/:projectId/planning/resources/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.deleteResourcePlan);
+
+// Risks CRUD
+router.post('/:projectId/planning/risks', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.createRisk);
+router.patch('/:projectId/planning/risks/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.updateRisk);
+router.delete('/:projectId/planning/risks/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), controller.deleteRisk);
+
 // --- Task / WBS Routes ---
 const taskController = new TaskController();
 

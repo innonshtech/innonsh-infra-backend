@@ -70,6 +70,7 @@ router.post('/', async (req: any, res) => {
         type: req.body.type || 'WORK_ORDER',
         description: req.body.description,
         totalValue: req.body.totalValue || 0,
+        paidAmount: req.body.paidAmount || 0,
         retentionPercent: req.body.retentionPercent || 0,
         retentionAmount,
         startDate: req.body.startDate ? new Date(req.body.startDate) : null,
@@ -88,6 +89,14 @@ router.post('/', async (req: any, res) => {
 // ─── Update Contract ───
 router.patch('/:id', async (req: any, res) => {
   try {
+    // Verify company ownership first for security
+    const existing = await (prisma as any).contract.findFirst({
+      where: { id: req.params.id, companyId: req.user.company_id }
+    });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Contract not found' });
+    }
+
     const { linkedTaskId, ...updateFields } = req.body;
     const data = { ...updateFields };
     if (data.startDate !== undefined) {
@@ -96,17 +105,11 @@ router.patch('/:id', async (req: any, res) => {
     if (data.endDate !== undefined) {
       data.endDate = data.endDate ? new Date(data.endDate) : null;
     }
-    if (data.totalValue && data.retentionPercent !== undefined) {
-      data.retentionAmount = (data.totalValue * data.retentionPercent) / 100;
-    }
 
-    // Verify company ownership first for security
-    const existing = await (prisma as any).contract.findFirst({
-      where: { id: req.params.id, companyId: req.user.company_id }
-    });
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Contract not found' });
-    }
+    // Dynamic retention recalculator using existing database values
+    const newTotal = data.totalValue !== undefined ? Number(data.totalValue) : Number(existing.totalValue);
+    const newPercent = data.retentionPercent !== undefined ? Number(data.retentionPercent) : Number(existing.retentionPercent);
+    data.retentionAmount = (newTotal * newPercent) / 100;
 
     await (prisma as any).contract.update({
       where: { id: req.params.id },

@@ -143,6 +143,30 @@ model Project {
   fuelLogs           FuelLog[]
   attendanceUploads  AttendanceUpload[]
   contracts          Contract[]
+
+  plannedStartDate    DateTime?
+  plannedEndDate      DateTime?
+  currentPhase        String?
+  delayDays           Int?                 @default(0)
+  planningNotes       String?
+  code                String?
+  projectType         String?
+  priority            String?              @default("MEDIUM")
+  clientContactPerson String?
+  clientPhone         String?
+  clientEmail         String?
+  contractNumber      String?
+  workOrderNumber     String?
+  address             String?
+  city                String?
+  state               String?
+  country             String?
+  pincode             String?
+  googleMapsUrl       String?
+  phases              ProjectPhase[]
+  milestones          ProjectMilestone[]
+  resourcePlans       ProjectResourcePlan[]
+  risks               ProjectRisk[]
 }
 
 model ProjectTask {
@@ -837,4 +861,56 @@ model CompanySetting {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model ProjectPhase {
+  id          String    @id @default(uuid())
+  projectId   String
+  name        String
+  startDate   DateTime?
+  endDate     DateTime?
+  isStarted   Boolean   @default(false)
+  isCompleted Boolean   @default(false)
+  progress    Float     @default(0)
+  status      String    @default("PENDING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  resourcePlans ProjectResourcePlan[]
+}
+
+model ProjectMilestone {
+  id          String    @id @default(uuid())
+  projectId   String
+  name        String
+  targetDate  DateTime
+  isCompleted Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ProjectResourcePlan {
+  id          String    @id @default(uuid())
+  projectId   String
+  phaseId     String?
+  category    String
+  name        String
+  quantity    Float
+  unit        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phase       ProjectPhase? @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+}
+
+model ProjectRisk {
+  id          String    @id @default(uuid())
+  projectId   String
+  name        String
+  priority    String
+  status      String    @default("OPEN")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
