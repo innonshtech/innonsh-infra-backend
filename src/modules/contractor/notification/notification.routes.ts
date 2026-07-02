@@ -109,24 +109,25 @@ router.post('/generate', async (req: any, res) => {
       }
     }
 
-    // 3. Low stock alerts
-    const lowStock = await (prisma as any).inventoryItem.findMany({
-      where: { companyId, currentStock: { lte: 10 } }
+    // 3. Low stock alerts (grouped by warehouse stock levels)
+    const lowStock = await (prisma as any).stock.findMany({
+      where: { companyId, quantity: { lte: 10 } },
+      include: { inventoryItem: true, warehouse: true }
     });
-    for (const item of lowStock) {
+    for (const st of lowStock) {
       const exists = await (prisma as any).notification.findFirst({
-        where: { companyId, referenceId: item.id, type: 'LOW_STOCK', isRead: false }
+        where: { companyId, referenceId: st.inventoryItemId, type: 'LOW_STOCK', isRead: false }
       });
-      if (!exists) {
+      if (!exists && st.inventoryItem) {
         await (prisma as any).notification.create({
           data: {
             companyId, type: 'LOW_STOCK',
-            title: `Low Stock: ${item.name}`,
-            message: `Only ${item.currentStock} ${item.unit || 'units'} remaining.`,
-            referenceId: item.id, referenceType: 'INVENTORY'
+            title: `Low Stock: ${st.inventoryItem.name} (${st.warehouse.name})`,
+            message: `Only ${st.quantity} ${st.inventoryItem.unit || 'units'} remaining in ${st.warehouse.name}.`,
+            referenceId: st.inventoryItemId, referenceType: 'INVENTORY'
           }
         });
-        created.push(`LOW_STOCK: ${item.name}`);
+        created.push(`LOW_STOCK: ${st.inventoryItem.name} in ${st.warehouse.name}`);
       }
     }
 

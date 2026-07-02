@@ -10,7 +10,7 @@ export const createTaskSchema = z.object({
   parentId: z.string().uuid().optional().nullable(),
   isMilestone: z.boolean().default(false),
   milestoneTriggerValue: z.number().min(0).max(100).optional().default(100),
-  imageUrl: z.string().url().optional().or(z.string().length(0)),
+  imageUrl: z.string().optional().nullable(),
   assignedUserId: z.string().uuid().optional().nullable(),
   assignedWorkerId: z.string().uuid().optional().nullable(),
 });
@@ -26,7 +26,7 @@ export const updateTaskSchema = z.object({
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD']).optional(),
   isMilestone: z.boolean().optional(),
   milestoneTriggerValue: z.number().min(0).max(100).optional(),
-  imageUrl: z.string().url().optional().or(z.string().length(0)),
+  imageUrl: z.string().optional().nullable(),
   assignedUserId: z.string().uuid().optional().nullable(),
   assignedWorkerId: z.string().uuid().optional().nullable(),
   completionNotes: z.string().optional().nullable(),

@@ -14,7 +14,26 @@ const app: Application = express();
 
 // ─── Security ───────────────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
+
+const allowedOrigins = [
+  'http://localhost:5173', // Vite default port
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, or postman)
+    if (!origin) return callback(null, true);
+    
+    if (process.env.NODE_ENV === 'development' || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS security policy'));
+    }
+  },
+  credentials: true
+}));
 
 // ─── Rate Limiting ──────────────────────────────────────────────────────────
 const limiter = rateLimit({

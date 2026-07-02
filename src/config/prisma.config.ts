@@ -1,9 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import { env } from './env.config';
 
-// Prisma v7 uses the client engine, requiring a driver adapter for direct DB connections.
-// We use the official @prisma/adapter-pg for PostgreSQL.
-const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
+// Create a pg Pool with SSL options to allow Supabase self-signed certificates
+const pool = new pg.Pool({
+  connectionString: env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({ adapter });
