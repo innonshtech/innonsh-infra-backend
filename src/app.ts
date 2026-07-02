@@ -20,6 +20,7 @@ const cleanOrigin = (url: string) => url.replace(/\/$/, '');
 const allowedOrigins = [
   'http://localhost:5173', // Vite default port
   'http://localhost:3000',
+  'https://infra.innonsh.com', // Explicit production URL to prevent Vercel CORS blocks
   process.env.FRONTEND_URL ? cleanOrigin(process.env.FRONTEND_URL) : ''
 ].filter(Boolean) as string[];
 
