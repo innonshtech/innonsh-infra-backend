@@ -134,6 +134,6 @@ router.post('/forgot-password', authController.forgotPassword);
  *         description: Password reset successful
  */
 router.post('/reset-password', authController.resetPassword);
-
+router.post('/change-password', authMiddleware, authController.changePassword);
 
 export default router;

@@ -78,3 +78,10 @@ export type LoginInput = z.infer<typeof loginDTOSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenDTOSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordDTOSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordDTOSchema>;
+
+export const changePasswordDTOSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8)
+});
+
+export type ChangePasswordInput = z.infer<typeof changePasswordDTOSchema>;

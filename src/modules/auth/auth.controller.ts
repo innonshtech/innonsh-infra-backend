@@ -7,7 +7,8 @@ import {
   loginDTOSchema, 
   refreshTokenDTOSchema, 
   forgotPasswordDTOSchema, 
-  resetPasswordDTOSchema 
+  resetPasswordDTOSchema,
+  changePasswordDTOSchema 
 } from './auth.dto';
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
@@ -63,8 +64,8 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
 export const forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const data = forgotPasswordDTOSchema.parse(req.body);
-    const result = await authService.forgotPassword(data);
-    sendResponse(res, 200, 'If an account exists, a reset link has been sent.', result);
+    await authService.forgotPassword(data);
+    sendResponse(res, 200, 'If an account exists, a reset link has been sent.');
   } catch (error) {
     next(error);
   }
@@ -75,6 +76,17 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     const data = resetPasswordDTOSchema.parse(req.body);
     await authService.resetPassword(data);
     sendResponse(res, 200, 'Password has been reset successfully. Please login with your new password.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = changePasswordDTOSchema.parse(req.body);
+    const userId = req.user!.id;
+    await authService.changePassword(userId, data);
+    sendResponse(res, 200, 'Password has been updated successfully. Please login again with your new credentials.');
   } catch (error) {
     next(error);
   }

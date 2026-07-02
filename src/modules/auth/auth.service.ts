@@ -3,13 +3,15 @@ import crypto from 'crypto';
 import { AppError } from '../../middleware/error.middleware';
 import { generateToken, generateRefreshToken, verifyRefreshToken } from '../../utils/jwt.util';
 import { authRepository } from './auth.repository';
+import { sendResetPasswordEmail } from '../../utils/mailer.util';
 import { 
   RegisterInput, 
   RegisterSuperadminInput,
   LoginInput, 
   RefreshTokenInput, 
   ForgotPasswordInput, 
-  ResetPasswordInput 
+  ResetPasswordInput,
+  ChangePasswordInput 
 } from './auth.dto';
 
 export class AuthService {
@@ -149,8 +151,12 @@ export class AuthService {
       resetPasswordExpire
     });
 
-    // In a real app, send email here. Returning token for demonstration.
-    return { resetToken }; 
+    // Send the email in the background to prevent blocking the API response
+    sendResetPasswordEmail(user.email, resetToken, user.firstName).catch(err => {
+      console.error('[AuthService] Failed to send reset email in background:', err.message);
+    });
+
+    return { success: true }; 
   }
 
   async resetPassword(data: ResetPasswordInput) {
@@ -167,6 +173,24 @@ export class AuthService {
       resetPasswordToken: null,
       resetPasswordExpire: null,
       refreshToken: null // Force logout from all sessions after password change
+    });
+  }
+
+  async changePassword(userId: string, data: ChangePasswordInput) {
+    const user = await authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    const isMatch = await bcrypt.compare(data.currentPassword, user.password);
+    if (!isMatch) {
+      throw new AppError('Incorrect current password', 400);
+    }
+
+    const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+    await authRepository.updateUser(user.id, {
+      password: hashedPassword,
+      refreshToken: null // Force refresh token reset to secure account
     });
   }
 
