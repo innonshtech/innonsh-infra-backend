@@ -15,10 +15,12 @@ const app: Application = express();
 // ─── Security ───────────────────────────────────────────────────────────────
 app.use(helmet());
 
+const cleanOrigin = (url: string) => url.replace(/\/$/, '');
+
 const allowedOrigins = [
   'http://localhost:5173', // Vite default port
   'http://localhost:3000',
-  process.env.FRONTEND_URL
+  process.env.FRONTEND_URL ? cleanOrigin(process.env.FRONTEND_URL) : ''
 ].filter(Boolean) as string[];
 
 app.use(cors({
@@ -26,9 +28,15 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, or postman)
     if (!origin) return callback(null, true);
     
-    if (process.env.NODE_ENV === 'development' || allowedOrigins.includes(origin)) {
+    const incoming = cleanOrigin(origin);
+    const isAllowed = process.env.NODE_ENV === 'development' || 
+                      allowedOrigins.includes(incoming) ||
+                      allowedOrigins.includes(origin);
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
+      console.error(`[CORS Blocked] Blocked access from origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS security policy'));
     }
   },
