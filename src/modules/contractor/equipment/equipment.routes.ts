@@ -111,6 +111,24 @@ router.post('/deployments/:depId/end', async (req: any, res) => {
   }
 });
 
+router.put('/deployments/:depId', async (req: any, res) => {
+  try {
+    await service.updateDeployment(req.params.depId, req.user.company_id, req.body);
+    res.json({ success: true, message: 'Deployment updated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.delete('/deployments/:depId', async (req: any, res) => {
+  try {
+    await service.deleteDeployment(req.params.depId, req.user.company_id);
+    res.json({ success: true, message: 'Deployment deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ─── Fuel / Running Cost Logs ───
 router.get('/fuel/all', async (req: any, res) => {
   try {
@@ -126,6 +144,24 @@ router.post('/:id/fuel', async (req: any, res) => {
   try {
     const log = await service.addFuelLog(req.user.company_id, { ...req.body, equipmentId: req.params.id });
     res.status(201).json({ success: true, data: log });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.put('/fuel/:logId', async (req: any, res) => {
+  try {
+    await service.updateFuelLog(req.params.logId, req.user.company_id, req.body);
+    res.json({ success: true, message: 'Fuel log updated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.delete('/fuel/:logId', async (req: any, res) => {
+  try {
+    await service.deleteFuelLog(req.params.logId, req.user.company_id);
+    res.json({ success: true, message: 'Fuel log deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

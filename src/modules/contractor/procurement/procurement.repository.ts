@@ -154,9 +154,22 @@ export class ProcurementRepository {
     });
   }
 
-  async createVendor(data: { companyId: string; name: string; email?: string; phone?: string; address?: string }) {
+  async createVendor(data: { companyId: string; name: string; email?: string; phone?: string; address?: string; serviceType?: string }) {
     return (prisma as any).vendor.create({
       data
+    });
+  }
+
+  async updateVendor(id: string, companyId: string, data: { name: string; email?: string; phone?: string; address?: string; serviceType?: string }) {
+    return (prisma as any).vendor.update({
+      where: { id },
+      data: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        serviceType: data.serviceType
+      }
     });
   }
 

@@ -95,6 +95,19 @@ export class EquipmentRepository {
     });
   }
 
+  async updateDeployment(id: string, companyId: string, data: any) {
+    return (prisma as any).equipmentDeployment.updateMany({
+      where: { id, companyId },
+      data
+    });
+  }
+
+  async deleteDeployment(id: string, companyId: string) {
+    return (prisma as any).equipmentDeployment.deleteMany({
+      where: { id, companyId }
+    });
+  }
+
   // ─── Fuel Logs ───
   async createFuelLog(data: any) {
     return (prisma as any).fuelLog.create({ data });
@@ -112,6 +125,19 @@ export class EquipmentRepository {
         project: { select: { name: true } }
       },
       orderBy: { date: 'desc' }
+    });
+  }
+
+  async updateFuelLog(id: string, companyId: string, data: any) {
+    return (prisma as any).fuelLog.updateMany({
+      where: { id, companyId },
+      data
+    });
+  }
+
+  async deleteFuelLog(id: string, companyId: string) {
+    return (prisma as any).fuelLog.deleteMany({
+      where: { id, companyId }
     });
   }
 }

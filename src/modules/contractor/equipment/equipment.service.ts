@@ -53,6 +53,19 @@ export class EquipmentService {
 
     const equipment = await this.repo.create({ ...data, companyId });
 
+    // If projectId is provided during registration, also create an initial deployment log
+    if (data.projectId) {
+      await this.repo.createDeployment({
+        companyId,
+        equipmentId: equipment.id,
+        projectId: data.projectId,
+        startDate: data.purchaseDate || new Date(),
+        dailyRate: data.dailyRentalRate || 0,
+        hoursPerDay: 8,
+        notes: 'Initial deployment during registration'
+      });
+    }
+
     // If OWNED and has purchase cost, create a one-time EXPENSE transaction
     if (data.ownership === 'OWNED' && data.purchaseCost && data.purchaseCost > 0) {
       await (prisma as any).transaction.create({
@@ -172,8 +185,8 @@ export class EquipmentService {
       }
     }
 
-    // Update equipment's current project
-    await this.repo.update(data.equipmentId, companyId, { projectId: data.projectId });
+    // Update equipment's current project and status
+    await this.repo.update(data.equipmentId, companyId, { projectId: data.projectId, status: 'OPERATIONAL' });
 
     // Create new deployment
     return this.repo.createDeployment({
@@ -197,6 +210,9 @@ export class EquipmentService {
 
     await this.repo.endDeployment(id, companyId, new Date(), totalCost);
 
+    // Release equipment back to yard as IDLE
+    await this.repo.update(dep.equipmentId, companyId, { projectId: null, status: 'IDLE' });
+
     // Auto-create EXPENSE transaction
     if (totalCost > 0) {
       await (prisma as any).transaction.create({
@@ -217,6 +233,33 @@ export class EquipmentService {
 
   async getDeployments(companyId: string, filters?: any) {
     return this.repo.getDeployments(companyId, filters);
+  }
+
+  async updateDeployment(id: string, companyId: string, data: any) {
+    if (data.startDate) data.startDate = new Date(data.startDate);
+    if (data.endDate) data.endDate = new Date(data.endDate);
+    if (data.dailyRate !== undefined && data.dailyRate !== '') data.dailyRate = parseFloat(data.dailyRate) || 0;
+    if (data.hoursPerDay !== undefined && data.hoursPerDay !== '') data.hoursPerDay = parseInt(data.hoursPerDay) || 8;
+
+    if (data.status === 'COMPLETED' && data.startDate && data.endDate) {
+      const days = Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / (1000 * 60 * 60 * 24)) || 1;
+      const rate = data.dailyRate !== undefined ? data.dailyRate : 0;
+      data.totalCost = days * rate;
+    }
+
+    return this.repo.updateDeployment(id, companyId, data);
+  }
+
+  async deleteDeployment(id: string, companyId: string) {
+    const deployments = await this.repo.getDeployments(companyId);
+    const dep = deployments.find((d: any) => d.id === id);
+    if (dep) {
+      const equipment = await this.repo.findById(dep.equipmentId, companyId);
+      if (equipment && equipment.projectId === dep.projectId) {
+        await this.repo.update(dep.equipmentId, companyId, { projectId: null, status: 'IDLE' });
+      }
+    }
+    return this.repo.deleteDeployment(id, companyId);
   }
 
   // ─── Fuel Logs ───
@@ -251,5 +294,47 @@ export class EquipmentService {
 
   async getFuelLogs(companyId: string, filters?: any) {
     return this.repo.getFuelLogs(companyId, filters);
+  }
+
+  async updateFuelLog(id: string, companyId: string, data: any) {
+    const totalCost = (data.quantity || 0) * (data.costPerUnit || 0);
+    const updateData: any = {
+      fuelType: data.fuelType,
+      quantity: data.quantity !== undefined ? parseFloat(data.quantity) : undefined,
+      costPerUnit: data.costPerUnit !== undefined ? parseFloat(data.costPerUnit) : undefined,
+      totalCost,
+      operatorName: data.operatorName,
+      projectId: data.projectId || null,
+      notes: data.notes
+    };
+    if (data.date) updateData.date = new Date(data.date);
+
+    await this.repo.updateFuelLog(id, companyId, updateData);
+
+    // Also update the linked expense transaction if totalCost > 0
+    if (totalCost > 0) {
+      const equipment = await this.repo.findById(data.equipmentId || '', companyId);
+      await (prisma as any).transaction.updateMany({
+        where: { referenceId: id, companyId },
+        data: {
+          amount: totalCost,
+          description: `Fuel - ${equipment?.name || 'Unknown'} (${data.quantity}L ${data.fuelType || 'DIESEL'})`,
+          date: updateData.date ? updateData.date : new Date()
+        }
+      });
+    } else {
+      await (prisma as any).transaction.deleteMany({
+        where: { referenceId: id, companyId }
+      });
+    }
+
+    return true;
+  }
+
+  async deleteFuelLog(id: string, companyId: string) {
+    await (prisma as any).transaction.deleteMany({
+      where: { referenceId: id, companyId }
+    });
+    return this.repo.deleteFuelLog(id, companyId);
   }
 }

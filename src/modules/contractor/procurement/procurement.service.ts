@@ -175,9 +175,14 @@ export class ProcurementService {
     return this.repository.findAllVendors(companyId);
   }
 
-  async createVendor(companyId: string, data: { name: string; email?: string; phone?: string; address?: string }) {
+  async createVendor(companyId: string, data: { name: string; email?: string; phone?: string; address?: string; serviceType?: string }) {
     if (!data.name) throw new Error('Vendor name is required');
     return this.repository.createVendor({ ...data, companyId });
+  }
+
+  async updateVendor(id: string, companyId: string, data: { name: string; email?: string; phone?: string; address?: string; serviceType?: string }) {
+    if (!data.name) throw new Error('Vendor name is required');
+    return this.repository.updateVendor(id, companyId, data);
   }
 
   async deleteVendor(id: string, companyId: string) {

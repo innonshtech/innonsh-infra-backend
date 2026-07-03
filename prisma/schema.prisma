@@ -290,6 +290,7 @@ model Vendor {
   email          String?
   phone          String?
   address        String?
+  serviceType    String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   purchaseOrders PurchaseOrder[]

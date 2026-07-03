@@ -254,6 +254,7 @@ router.post('/purchase-orders/:id/receive', authMiddleware, contractorGuard, all
 // --- Vendors ---
 router.get('/vendors', authMiddleware, contractorGuard, allowPermissions('procurement.view'), controller.getAllVendors);
 router.post('/vendors', authMiddleware, contractorGuard, allowPermissions('procurement.create'), controller.createVendor);
+router.patch('/vendors/:id', authMiddleware, contractorGuard, allowPermissions('procurement.create'), controller.updateVendor);
 router.delete('/vendors/:id', authMiddleware, contractorGuard, allowPermissions('procurement.create'), controller.deleteVendor);
 
 export default router;

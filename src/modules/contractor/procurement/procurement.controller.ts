@@ -153,6 +153,15 @@ export class ProcurementController {
     }
   };
 
+  updateVendor = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await this.service.updateVendor(req.params.id as string, req.user!.company_id, req.body);
+      sendResponse(res, 200, 'Vendor updated successfully', data);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   deleteVendor = async (req: Request, res: Response, next: NextFunction) => {
     try {
       await this.service.deleteVendor(req.params.id as string, req.user!.company_id);
