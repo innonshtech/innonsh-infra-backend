@@ -19,6 +19,13 @@ router.get('/', authMiddleware, async (req: any, res) => {
         email: true,
         isActive: true,
         permissions: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true,
+          }
+        }
       },
       orderBy: { firstName: 'asc' }
     });

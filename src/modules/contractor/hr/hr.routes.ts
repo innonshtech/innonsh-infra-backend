@@ -269,5 +269,79 @@ router.get('/attendance/uploads', async (req: any, res) => {
   }
 });
 
+// ─── Attendance Redesign Extensions ───
+
+// 1. Pending Approvals list
+router.get('/attendance/pending', async (req: any, res) => {
+  try {
+    const list = await service.getPendingApprovals(req.user.company_id);
+    res.json({ success: true, data: list });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. Approve Daily Ledger
+router.post('/attendance/approve', async (req: any, res) => {
+  try {
+    const { date, projectId } = req.body;
+    if (!date) return res.status(400).json({ success: false, message: 'date is required' });
+    await service.approveAttendance(req.user.company_id, date, projectId || null, req.user.id);
+    res.json({ success: true, message: 'Attendance ledger approved successfully' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. Submit Correction
+router.post('/attendance/correct', async (req: any, res) => {
+  try {
+    const { attendanceId, newStatus, newWage, newOvertimeHrs, newNotes, reason } = req.body;
+    if (!attendanceId || !newStatus || newWage === undefined || !reason) {
+      return res.status(400).json({ success: false, message: 'attendanceId, newStatus, newWage, and reason are required' });
+    }
+    const result = await service.submitCorrection(
+      req.user.company_id,
+      attendanceId,
+      newStatus,
+      newWage,
+      newOvertimeHrs || 0,
+      newNotes || '',
+      reason,
+      req.user.id
+    );
+    res.json({ success: true, data: result, message: 'Correction processed and logged' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 4. Fetch Audit Logs
+router.get('/attendance/audit-logs', async (req: any, res) => {
+  try {
+    const logs = await service.getAuditLogs(req.user.company_id);
+    res.json({ success: true, data: logs });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 5. Fetch Register Matrix
+router.get('/attendance/register', async (req: any, res) => {
+  try {
+    const { month, year, projectId } = req.query;
+    if (!month || !year) return res.status(400).json({ success: false, message: 'month and year are required' });
+    const records = await service.getRegisterMatrix(
+      req.user.company_id,
+      parseInt(month as string),
+      parseInt(year as string),
+      projectId as string
+    );
+    res.json({ success: true, data: records });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
 

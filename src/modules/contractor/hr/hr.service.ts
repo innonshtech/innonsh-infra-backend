@@ -77,4 +77,34 @@ export class LabourService {
 
     return { transaction: txn, payroll };
   }
+
+  // ─── Attendance Redesign Extensions ───
+  async getPendingApprovals(companyId: string) {
+    return this.repo.findPendingApprovals(companyId);
+  }
+
+  async approveAttendance(companyId: string, date: string, projectId: string | null, userId: string) {
+    return this.repo.approveAttendance(companyId, date, projectId, userId);
+  }
+
+  async submitCorrection(
+    companyId: string,
+    attendanceId: string,
+    newStatus: string,
+    newWage: number,
+    newOvertimeHrs: number,
+    newNotes: string,
+    reason: string,
+    userId: string
+  ) {
+    return this.repo.submitCorrection(companyId, attendanceId, newStatus, newWage, newOvertimeHrs, newNotes, reason, userId);
+  }
+
+  async getAuditLogs(companyId: string) {
+    return this.repo.findAuditLogs(companyId);
+  }
+
+  async getRegisterMatrix(companyId: string, month: number, year: number, projectId?: string) {
+    return this.repo.findRegisterMatrix(companyId, month, year, projectId);
+  }
 }

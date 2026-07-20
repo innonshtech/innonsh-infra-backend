@@ -267,7 +267,7 @@ router.get('/tasks/my-tasks', authMiddleware, contractorGuard, taskController.ge
  *     security:
  *       - bearerAuth: []
  */
-router.get('/:projectId/tasks', authMiddleware, contractorGuard, allowPermissions(['projects.view', 'projects.manage']), taskController.getTasks);
+router.get('/:projectId/tasks', authMiddleware, contractorGuard, allowPermissions(['projects.view', 'projects.manage', 'tasks.manage']), taskController.getTasks);
 
 /**
  * @swagger
@@ -278,7 +278,7 @@ router.get('/:projectId/tasks', authMiddleware, contractorGuard, allowPermission
  *     security:
  *       - bearerAuth: []
  */
-router.post('/:projectId/tasks', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), taskController.createTask);
+router.post('/:projectId/tasks', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage', 'projects.create', 'tasks.manage']), taskController.createTask);
 
 /**
  * @swagger
@@ -289,7 +289,7 @@ router.post('/:projectId/tasks', authMiddleware, contractorGuard, allowPermissio
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/tasks/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), taskController.updateTask);
+router.patch('/tasks/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage', 'tasks.manage']), taskController.updateTask);
 
 /**
  * @swagger
@@ -300,7 +300,7 @@ router.patch('/tasks/:id', authMiddleware, contractorGuard, allowPermissions(['p
  *     security:
  *       - bearerAuth: []
  */
-router.delete('/tasks/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage']), taskController.deleteTask);
+router.delete('/tasks/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage', 'tasks.manage']), taskController.deleteTask);
 
 // ─── Project Financial Breakdown ───
 router.get('/:id/financials', authMiddleware, contractorGuard, allowPermissions(['projects.view', 'projects.manage']), async (req: any, res, next) => {

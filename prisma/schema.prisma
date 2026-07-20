@@ -642,6 +642,26 @@ model Worker {
   joinDate    DateTime     @default(now())
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  // New Fields for Labour Master:
+  gender            String?
+  dob               DateTime?
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
+  skillGrade        String        @default("SKILLED") // SKILLED, SEMI_SKILLED, UNSKILLED
+  overtimeRate      Float         @default(0.0)
+  contractorName    String?       // Sub-contractor agency name if not direct payroll
+  aadhaarNumber     String?
+  panNumber         String?
+  idDocUrl          String?       // Path to uploaded Aadhaar/ID scan
+  photoUrl          String?       // Profile photo path
+  paymentMode       String        @default("CASH") // BANK, UPI, CASH
+  bankName          String?
+  bankAccountNo     String?
+  bankIfsc          String?
+  upiId             String?
+
   company     Company      @relation(fields: [companyId], references: [id])
   project     Project?     @relation(fields: [projectId], references: [id])
   attendance  Attendance[]
@@ -649,21 +669,37 @@ model Worker {
 }
 
 model Attendance {
-  id          String   @id @default(uuid())
-  companyId   String
-  workerId    String
-  projectId   String?
-  date        DateTime
-  status      String   // PRESENT, ABSENT, HALF_DAY
-  wageAmount  Float    @default(0)
-  overtimeHrs Float    @default(0)
-  notes       String?
-  createdAt   DateTime @default(now())
-  company     Company  @relation(fields: [companyId], references: [id])
-  worker      Worker   @relation(fields: [workerId], references: [id])
-  project     Project? @relation(fields: [projectId], references: [id])
+  id             String    @id @default(uuid())
+  companyId      String
+  workerId       String
+  projectId      String?
+  date           DateTime
+  status         String    // PRESENT, ABSENT, HALF_DAY, LEAVE
+  wageAmount     Float     @default(0)
+  overtimeHrs    Float     @default(0)
+  notes          String?
+  approvalStatus String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedById   String?
+  approvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  company        Company   @relation(fields: [companyId], references: [id])
+  worker         Worker    @relation(fields: [workerId], references: [id])
+  project        Project?  @relation(fields: [projectId], references: [id])
 
   @@unique([workerId, date])
+}
+
+model AttendanceAuditLog {
+  id             String    @id @default(uuid())
+  companyId      String
+  attendanceId   String
+  changedById    String
+  previousStatus String
+  newStatus      String
+  previousWage   Float
+  newWage        Float
+  reason         String?
+  createdAt      DateTime  @default(now())
 }
 
 model Equipment {

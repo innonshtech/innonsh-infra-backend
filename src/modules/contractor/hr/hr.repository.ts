@@ -62,16 +62,22 @@ export class LabourRepository {
     });
   }
 
-  async upsertAttendance(data: { companyId: string; workerId: string; projectId?: string; date: string; status: string; wageAmount: number }) {
+  async upsertAttendance(data: { companyId: string; workerId: string; projectId?: string; date: string; status: string; wageAmount: number; overtimeHrs?: number; notes?: string }) {
     const dateObj = new Date(data.date);
     return (prisma as any).attendance.upsert({
       where: { workerId_date: { workerId: data.workerId, date: dateObj } },
-      update: { status: data.status, wageAmount: data.wageAmount, projectId: data.projectId },
+      update: { 
+        status: data.status, 
+        wageAmount: data.wageAmount, 
+        projectId: data.projectId,
+        overtimeHrs: data.overtimeHrs ?? 0,
+        notes: data.notes ?? null
+      },
       create: { ...data, date: dateObj }
     });
   }
 
-  async bulkUpsertAttendance(records: Array<{ companyId: string; workerId: string; projectId?: string; date: string; status: string; wageAmount: number }>) {
+  async bulkUpsertAttendance(records: Array<{ companyId: string; workerId: string; projectId?: string; date: string; status: string; wageAmount: number; overtimeHrs?: number; notes?: string }>) {
     const results = [];
     for (const record of records) {
       const result = await this.upsertAttendance(record);
@@ -88,9 +94,10 @@ export class LabourRepository {
     const present = records.filter((r: any) => r.status === 'PRESENT').length;
     const absent = records.filter((r: any) => r.status === 'ABSENT').length;
     const halfDay = records.filter((r: any) => r.status === 'HALF_DAY').length;
+    const leave = records.filter((r: any) => r.status === 'LEAVE').length;
     const totalWage = records.reduce((s: number, r: any) => s + r.wageAmount, 0);
 
-    return { present, absent, halfDay, total: records.length, totalWage };
+    return { present, absent, halfDay, leave, total: records.length, totalWage };
   }
 
   // ─── Payroll ───
@@ -127,5 +134,151 @@ export class LabourRepository {
     const totalWorkers = breakdown.length;
 
     return { totalPayroll, totalWorkers, breakdown };
+  }
+
+  // ─── Attendance Redesign Extensions ───
+  async findPendingApprovals(companyId: string) {
+    const pendingRecords = await (prisma as any).attendance.findMany({
+      where: { companyId, approvalStatus: 'PENDING' },
+      include: {
+        project: { select: { name: true } }
+      },
+      orderBy: { date: 'desc' }
+    });
+
+    const grouped: Record<string, any> = {};
+    for (const r of pendingRecords) {
+      const dateStr = r.date.toISOString().split('T')[0];
+      const key = `${dateStr}_${r.projectId || 'none'}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          date: dateStr,
+          projectId: r.projectId || null,
+          projectName: r.project?.name || 'No Project Assigned',
+          totalWorkers: 0,
+          totalWage: 0,
+          status: 'PENDING'
+        };
+      }
+      grouped[key].totalWorkers++;
+      grouped[key].totalWage += r.wageAmount;
+    }
+
+    return Object.values(grouped);
+  }
+
+  async approveAttendance(companyId: string, date: string, projectId: string | null, userId: string) {
+    const dateObj = new Date(date);
+    const where: any = {
+      companyId,
+      date: dateObj,
+      approvalStatus: 'PENDING'
+    };
+    if (projectId) {
+      where.projectId = projectId;
+    } else {
+      where.projectId = null;
+    }
+
+    return (prisma as any).attendance.updateMany({
+      where,
+      data: {
+        approvalStatus: 'APPROVED',
+        approvedById: userId,
+        approvedAt: new Date()
+      }
+    });
+  }
+
+  async submitCorrection(
+    companyId: string,
+    attendanceId: string,
+    newStatus: string,
+    newWage: number,
+    newOvertimeHrs: number,
+    newNotes: string,
+    reason: string,
+    userId: string
+  ) {
+    return (prisma as any).$transaction(async (tx: any) => {
+      const existing = await tx.attendance.findFirst({
+        where: { id: attendanceId, companyId }
+      });
+
+      if (!existing) {
+        throw new Error('Attendance record not found');
+      }
+
+      // Update record
+      const updated = await tx.attendance.update({
+        where: { id: attendanceId },
+        data: {
+          status: newStatus,
+          wageAmount: newWage,
+          overtimeHrs: newOvertimeHrs,
+          notes: newNotes,
+          approvalStatus: 'APPROVED', // corrections are auto-approved
+          approvedById: userId,
+          approvedAt: new Date()
+        }
+      });
+
+      // Create audit log
+      await tx.attendanceAuditLog.create({
+        data: {
+          companyId,
+          attendanceId,
+          changedById: userId,
+          previousStatus: existing.status,
+          newStatus,
+          previousWage: existing.wageAmount,
+          newWage,
+          reason
+        }
+      });
+
+      return updated;
+    });
+  }
+
+  async findAuditLogs(companyId: string) {
+    const logs = await (prisma as any).attendanceAuditLog.findMany({
+      where: { companyId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const enriched = [];
+    for (const log of logs) {
+      const att = await (prisma as any).attendance.findFirst({
+        where: { id: log.attendanceId },
+        include: { worker: { select: { firstName: true, lastName: true } } }
+      });
+
+      enriched.push({
+        ...log,
+        workerName: att ? `${att.worker.firstName} ${att.worker.lastName}` : 'Unknown Worker',
+        date: att ? att.date.toISOString().split('T')[0] : 'Unknown Date'
+      });
+    }
+    return enriched;
+  }
+
+  async findRegisterMatrix(companyId: string, month: number, year: number, projectId?: string) {
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    const where: any = {
+      companyId,
+      date: { gte: startDate, lte: endDate }
+    };
+    if (projectId) {
+      where.projectId = projectId;
+    }
+
+    return (prisma as any).attendance.findMany({
+      where,
+      include: { worker: { select: { id: true, firstName: true, lastName: true, role: true } } },
+      orderBy: { date: 'asc' }
+    });
   }
 }
