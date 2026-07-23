@@ -80,6 +80,42 @@ router.post('/', async (req: any, res) => {
         projectId: req.body.projectId || null,
       }
     });
+
+    if (contract.status === 'ACTIVE' && (contract.partyType === 'SUB_CONTRACTOR' || contract.partyType === 'SUPPLIER')) {
+      const pendingAmount = contract.totalValue - contract.paidAmount;
+      if (pendingAmount > 0) {
+        let projectName = 'Central Yard';
+        if (contract.projectId) {
+          const proj = await (prisma as any).project.findUnique({
+            where: { id: contract.projectId },
+            select: { name: true }
+          });
+          if (proj) projectName = proj.name;
+        }
+
+        await (prisma as any).transaction.create({
+          data: {
+            companyId,
+            projectId: contract.projectId || null,
+            type: 'EXPENSE',
+            category: 'CONTRACT_BILL',
+            amount: pendingAmount,
+            date: contract.startDate || new Date(),
+            status: 'PENDING',
+            description: `Contract Bill - ${contract.title} (${contract.contractNumber})`,
+            referenceId: contract.id,
+            metadata: {
+              contractId: contract.id,
+              contractNumber: contract.contractNumber,
+              vendorName: contract.partyName,
+              projectName,
+              type: 'CONTRACT'
+            }
+          }
+        });
+      }
+    }
+
     res.status(201).json({ success: true, data: contract });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

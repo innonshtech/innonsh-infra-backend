@@ -28,6 +28,69 @@ router.get('/stats', async (req: any, res) => {
   }
 });
 
+// ─── Fuel Container Purchases ───
+router.post('/fuel-purchase', async (req: any, res) => {
+  try {
+    const { date, vendorName, projectId, quantity, rate, notes } = req.body;
+    const { prisma } = require('../../../config/prisma.config');
+
+    // Get project name if projectId is provided
+    let projectName = 'Central Yard';
+    if (projectId) {
+      const proj = await (prisma as any).project.findUnique({
+        where: { id: projectId },
+        select: { name: true }
+      });
+      if (proj) projectName = proj.name;
+    }
+
+    const qtyVal = parseFloat(quantity);
+    const rateVal = parseFloat(rate);
+    const amount = qtyVal * rateVal;
+
+    const transaction = await (prisma as any).transaction.create({
+      data: {
+        companyId: req.user.company_id,
+        projectId: projectId || null,
+        type: 'EXPENSE',
+        category: 'FUEL_BILL',
+        amount,
+        date: date ? new Date(date) : new Date(),
+        status: 'PENDING',
+        description: `Bulk Fuel Purchase - ${qtyVal}L @ ₹${rateVal}/L from ${vendorName}`,
+        metadata: {
+          quantity: qtyVal,
+          rate: rateVal,
+          vendorName,
+          projectName,
+          notes: notes || '',
+          type: 'FUEL'
+        }
+      }
+    });
+
+    res.status(201).json({ success: true, data: transaction });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get('/fuel-purchases', async (req: any, res) => {
+  try {
+    const { prisma } = require('../../../config/prisma.config');
+    const purchases = await (prisma as any).transaction.findMany({
+      where: {
+        companyId: req.user.company_id,
+        category: 'FUEL_BILL'
+      },
+      orderBy: { date: 'desc' }
+    });
+    res.json({ success: true, data: purchases });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.get('/:id', async (req: any, res) => {
   try {
     const item = await service.getEquipmentById(req.params.id, req.user.company_id);

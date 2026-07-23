@@ -289,7 +289,7 @@ router.post('/:projectId/tasks', authMiddleware, contractorGuard, allowPermissio
  *     security:
  *       - bearerAuth: []
  */
-router.patch('/tasks/:id', authMiddleware, contractorGuard, allowPermissions(['projects.update', 'projects.manage', 'tasks.manage']), taskController.updateTask);
+router.patch('/tasks/:id', authMiddleware, contractorGuard, taskController.updateTask);
 
 /**
  * @swagger

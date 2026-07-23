@@ -36,6 +36,25 @@ export class FinanceController {
     }
   };
 
+  approveTransaction = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { paymentMode } = req.body;
+      const data = await this.service.approveTransaction(req.params.id as string, req.user!.company_id, paymentMode);
+      sendResponse(res, 200, 'Transaction approved & ledger updated', data);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  rejectTransaction = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await this.service.rejectTransaction(req.params.id as string, req.user!.company_id);
+      sendResponse(res, 200, 'Transaction rejected', data);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // --- Invoices ---
 
   getAllInvoices = async (req: Request, res: Response, next: NextFunction) => {

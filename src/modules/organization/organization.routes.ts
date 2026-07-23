@@ -23,6 +23,7 @@ router.delete('/departments/:id', authMiddleware, organizationController.deleteD
 // Designations
 router.get('/designations', authMiddleware, organizationController.getDesignations);
 router.post('/designations', authMiddleware, organizationController.createDesignation);
+router.put('/designations/:id', authMiddleware, organizationController.updateDesignation);
 router.delete('/designations/:id', authMiddleware, organizationController.deleteDesignation);
 
 // Company Documents

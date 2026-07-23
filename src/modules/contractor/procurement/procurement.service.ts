@@ -22,7 +22,48 @@ export class ProcurementService {
   }
 
   async createRequest(companyId: string, requestedById: string, data: CreateProcurementRequestDTO) {
-    return this.repository.createRequest({ ...data, companyId, requestedById });
+    const request = await this.repository.createRequest({ ...data, companyId, requestedById });
+
+    try {
+      // Find all users who are allowed to approve procurement requests
+      const companyUsers = await prisma.user.findMany({
+        where: { companyId },
+        include: { role: true }
+      });
+
+      const approverIds = companyUsers.filter(user => {
+        // Don't notify the requester themselves
+        if (user.id === requestedById) return false;
+
+        const permissions = new Set([
+          ...(user.permissions || []),
+          ...(user.role?.permissions || [])
+        ]);
+
+        return user.role?.name?.toUpperCase() === 'OWNER' ||
+               permissions.has('*') ||
+               permissions.has('procurement.manage') ||
+               permissions.has('procurement.approve');
+      }).map(u => u.id);
+
+      for (const approverId of approverIds) {
+        await (prisma as any).notification.create({
+          data: {
+            companyId,
+            userId: approverId,
+            type: 'PENDING_APPROVAL',
+            title: 'New Procurement Request',
+            message: `A new procurement request "${request.title}" is pending your approval.`,
+            referenceId: request.id,
+            referenceType: 'PROCUREMENT'
+          }
+        });
+      }
+    } catch (err: any) {
+      console.error('Failed to create procurement request notification:', err);
+    }
+
+    return request;
   }
 
   async updateRequest(id: string, companyId: string, data: UpdateProcurementRequestDTO) {
@@ -46,7 +87,26 @@ export class ProcurementService {
     if (request.status !== 'PENDING') {
       throw new Error('Request is already ' + request.status.toLowerCase());
     }
-    return this.repository.approveRequest(id, companyId, approvedById);
+    const result = await this.repository.approveRequest(id, companyId, approvedById);
+
+    try {
+      // Notify the original requester
+      await (prisma as any).notification.create({
+        data: {
+          companyId,
+          userId: request.requestedById,
+          type: 'REQUEST_APPROVED',
+          title: 'Procurement Request Approved',
+          message: `Your procurement request "${request.title}" has been approved.`,
+          referenceId: request.id,
+          referenceType: 'PROCUREMENT'
+        }
+      });
+    } catch (err: any) {
+      console.error('Failed to notify requester of approval:', err);
+    }
+
+    return result;
   }
 
   async rejectRequest(id: string, companyId: string) {
@@ -54,7 +114,26 @@ export class ProcurementService {
     if (request.status !== 'PENDING') {
       throw new Error('Request is already ' + request.status.toLowerCase());
     }
-    return this.repository.rejectRequest(id, companyId);
+    const result = await this.repository.rejectRequest(id, companyId);
+
+    try {
+      // Notify the original requester
+      await (prisma as any).notification.create({
+        data: {
+          companyId,
+          userId: request.requestedById,
+          type: 'REQUEST_REJECTED',
+          title: 'Procurement Request Rejected',
+          message: `Your procurement request "${request.title}" has been rejected.`,
+          referenceId: request.id,
+          referenceType: 'PROCUREMENT'
+        }
+      });
+    } catch (err: any) {
+      console.error('Failed to notify requester of rejection:', err);
+    }
+
+    return result;
   }
 
   // --- Purchase Order logic ---
@@ -90,7 +169,13 @@ export class ProcurementService {
   async receivePurchaseOrder(id: string, companyId: string, warehouseId: string) {
     const po = await (prisma as any).purchaseOrder.findFirst({
       where: { id, companyId },
-      include: { items: true },
+      include: { 
+        items: true,
+        vendor: true,
+        request: {
+          include: { project: true }
+        }
+      },
     });
 
     if (!po) throw new Error('Purchase order not found');
@@ -156,12 +241,21 @@ export class ProcurementService {
       await tx.transaction.create({
         data: {
           companyId,
+          projectId: po.projectId || po.request?.projectId || undefined,
           type: 'EXPENSE',
-          category: 'MATERIAL_PURCHASE',
+          category: 'VENDOR_BILL',
           amount: po.totalAmount,
-          description: `Material Purchase - PO: ${po.poNumber}`,
+          description: `Vendor Bill for PO #${po.poNumber}`,
           date: new Date(),
-          referenceId: po.id
+          status: 'PENDING',
+          referenceId: po.id,
+          metadata: {
+            poId: po.id,
+            poNumber: po.poNumber,
+            vendorId: po.vendorId,
+            vendorName: po.vendor?.name || 'Unknown Vendor',
+            projectName: po.request?.project?.name || 'Central Yard'
+          }
         }
       });
 

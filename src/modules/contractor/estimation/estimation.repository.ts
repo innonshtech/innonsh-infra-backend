@@ -2,9 +2,21 @@ import { prisma } from '../../../config/prisma.config';
 import { CreateEstimationDTO, AddEstimationItemDTO, UpdateEstimationItemDTO } from './estimation.dto';
 
 export class EstimationRepository {
-  async findAll(companyId: string) {
+  async findAll(companyId: string, user?: any) {
+    const hasFullAccess = !user || user.permissions?.includes('*') || user.role?.toUpperCase() === 'OWNER';
+    const whereClause: any = { companyId };
+    if (!hasFullAccess) {
+      whereClause.project = {
+        members: {
+          some: {
+            userId: user.id
+          }
+        }
+      };
+    }
+
     return prisma.estimation.findMany({
-      where: { companyId },
+      where: whereClause,
       include: {
         project: {
           select: { name: true },
@@ -16,15 +28,28 @@ export class EstimationRepository {
             requestedBy: { select: { firstName: true, lastName: true, email: true } },
             designatedApprover: { select: { firstName: true, lastName: true, email: true } },
             approvedBy: { select: { firstName: true, lastName: true, email: true } },
+            procurementRequests: { select: { id: true } }
           }
         },
       },
     });
   }
 
-  async findById(id: string, companyId: string) {
+  async findById(id: string, companyId: string, user?: any) {
+    const hasFullAccess = !user || user.permissions?.includes('*') || user.role?.toUpperCase() === 'OWNER';
+    const whereClause: any = { id, companyId };
+    if (!hasFullAccess) {
+      whereClause.project = {
+        members: {
+          some: {
+            userId: user.id
+          }
+        }
+      };
+    }
+
     return prisma.estimation.findFirst({
-      where: { id, companyId },
+      where: whereClause,
       include: {
         project: true,
         versions: {
@@ -33,6 +58,7 @@ export class EstimationRepository {
             requestedBy: { select: { firstName: true, lastName: true, email: true } },
             designatedApprover: { select: { firstName: true, lastName: true, email: true } },
             approvedBy: { select: { firstName: true, lastName: true, email: true } },
+            procurementRequests: { select: { id: true } }
           },
           orderBy: { versionNumber: 'desc' },
         },

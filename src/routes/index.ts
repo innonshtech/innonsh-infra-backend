@@ -21,6 +21,7 @@ import builderReportRoutes from '../modules/builder/reports/reports.routes';
 import usersRoutes from '../modules/users/users.routes';
 import companyRoutes from '../modules/company/company.routes';
 import organizationRoutes from '../modules/organization/organization.routes';
+import aiRoutes from '../modules/ai/ai.routes';
 
 
 
@@ -35,6 +36,7 @@ router.get('/health', (_req, res) => {
 router.use('/auth', authRoutes);
 router.use('/system', systemRoutes);
 router.use('/users', usersRoutes);
+router.use('/ai', aiRoutes);
 router.use('/contractor/projects', contractorProjectRoutes);
 router.use('/contractor/estimations', contractorEstimationRoutes);
 router.use('/contractor/procurement', contractorProcurementRoutes);

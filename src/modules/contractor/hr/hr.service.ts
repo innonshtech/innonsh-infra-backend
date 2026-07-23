@@ -52,6 +52,10 @@ export class LabourService {
     return this.repo.getPayroll(companyId, startDate, endDate, projectId);
   }
 
+  async runPayrollBatch(companyId: string, startDate: string, endDate: string, projectId?: string, remarks?: string) {
+    return this.repo.runPayrollBatch(companyId, startDate, endDate, projectId, remarks);
+  }
+
   /**
    * Finalize Payroll: Auto-create EXPENSE transaction for labour wages.
    * This bridges the Labour module to the Finance module.

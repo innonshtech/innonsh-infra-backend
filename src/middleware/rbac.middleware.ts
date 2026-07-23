@@ -13,7 +13,7 @@ export const allowPermissions = (requiredPermissions: string | string[]) => {
       // Permissions are embedded in the JWT payload
       const userPermissions: string[] = user.permissions || [];
 
-      if (userPermissions.includes('*')) {
+      if (userPermissions.includes('*') || userPermissions.includes('ALL') || userPermissions.includes('all')) {
         return next();
       }
 

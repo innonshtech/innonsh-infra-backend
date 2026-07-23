@@ -1,5 +1,6 @@
 import { FinanceRepository } from './finance.repository';
 import { CreateInvoiceDTO, UpdateInvoiceDTO, CreateTransactionDTO, CreatePaymentDTO } from './finance.dto';
+import { prisma } from '../../../config/prisma.config';
 
 export class FinanceService {
   private repository: FinanceRepository;
@@ -45,6 +46,47 @@ export class FinanceService {
 
   async createTransaction(companyId: string, data: CreateTransactionDTO) {
     return this.repository.createTransaction({ ...data, companyId });
+  }
+
+  async approveTransaction(id: string, companyId: string, paymentMode?: string) {
+    const tx = await (prisma as any).transaction.findFirst({
+      where: { id, companyId }
+    });
+    
+    if (tx && tx.category === 'CONTRACT_BILL' && tx.metadata) {
+      const meta = tx.metadata as any;
+      if (meta.contractId) {
+        await (prisma as any).$transaction(async (prismaTx: any) => {
+          // Update the transaction status
+          await prismaTx.transaction.update({
+            where: { id },
+            data: {
+              status: 'COMPLETED',
+              paymentMode: paymentMode || null
+            }
+          });
+          
+          // Update the contract paidAmount
+          const contract = await prismaTx.contract.findUnique({
+            where: { id: meta.contractId }
+          });
+          if (contract) {
+            const newPaid = (contract.paidAmount || 0) + tx.amount;
+            await prismaTx.contract.update({
+              where: { id: meta.contractId },
+              data: { paidAmount: newPaid }
+            });
+          }
+        });
+        return { success: true };
+      }
+    }
+
+    return this.repository.updateTransactionStatus(id, companyId, 'COMPLETED', paymentMode);
+  }
+
+  async rejectTransaction(id: string, companyId: string) {
+    return this.repository.updateTransactionStatus(id, companyId, 'REJECTED');
   }
 
   // --- Payment Logic (Linked to Transactions) ---

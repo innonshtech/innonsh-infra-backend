@@ -112,6 +112,17 @@ router.get('/payroll', async (req: any, res) => {
   }
 });
 
+router.post('/payroll/run', async (req: any, res) => {
+  try {
+    const { startDate, endDate, projectId, remarks } = req.body;
+    if (!startDate || !endDate) return res.status(400).json({ success: false, message: 'startDate and endDate required' });
+    const txn = await service.runPayrollBatch(req.user.company_id, startDate, endDate, projectId, remarks);
+    res.json({ success: true, data: txn, message: 'Payroll batch submitted to Finance for approval' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post('/payroll/finalize', async (req: any, res) => {
   try {
     const { startDate, endDate, projectId } = req.body;

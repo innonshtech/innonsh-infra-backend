@@ -1,5 +1,6 @@
 import { EstimationRepository } from './estimation.repository';
 import { CreateEstimationDTO, AddEstimationItemDTO, UpdateEstimationItemDTO } from './estimation.dto';
+import { prisma } from '../../../config/prisma.config';
 
 export class EstimationService {
   private estimationRepository: EstimationRepository;
@@ -8,14 +9,14 @@ export class EstimationService {
     this.estimationRepository = new EstimationRepository();
   }
 
-  async getAllEstimations(companyId: string) {
-    return this.estimationRepository.findAll(companyId);
+  async getAllEstimations(companyId: string, user?: any) {
+    return this.estimationRepository.findAll(companyId, user);
   }
 
-  async getEstimationById(id: string, companyId: string) {
-    const estimation = await this.estimationRepository.findById(id, companyId);
+  async getEstimationById(id: string, companyId: string, user?: any) {
+    const estimation = await this.estimationRepository.findById(id, companyId, user);
     if (!estimation) {
-      throw new Error('Estimation not found');
+      throw new Error('Estimation not found or you do not have permission to access it');
     }
     return estimation;
   }
@@ -24,18 +25,18 @@ export class EstimationService {
     return this.estimationRepository.create({ ...data, companyId });
   }
 
-  async updateEstimation(id: string, companyId: string, data: { title: string; description?: string }) {
-    await this.getEstimationById(id, companyId);
+  async updateEstimation(id: string, companyId: string, data: { title: string; description?: string }, user?: any) {
+    await this.getEstimationById(id, companyId, user);
     return this.estimationRepository.update(id, companyId, data);
   }
 
-  async deleteEstimation(id: string, companyId: string) {
-    await this.getEstimationById(id, companyId);
+  async deleteEstimation(id: string, companyId: string, user?: any) {
+    await this.getEstimationById(id, companyId, user);
     return this.estimationRepository.delete(id, companyId);
   }
 
-  async addItem(estimationId: string, companyId: string, data: AddEstimationItemDTO) {
-    const estimation = await this.getEstimationById(estimationId, companyId);
+  async addItem(estimationId: string, companyId: string, data: AddEstimationItemDTO, user?: any) {
+    const estimation = await this.getEstimationById(estimationId, companyId, user);
     const latestVersion = estimation.versions[0];
     
     if (latestVersion.status !== 'DRAFT' && latestVersion.status !== 'PENDING_APPROVAL') {
@@ -47,8 +48,8 @@ export class EstimationService {
     return item;
   }
 
-  async updateItem(estimationId: string, itemId: string, companyId: string, data: UpdateEstimationItemDTO) {
-    const estimation = await this.getEstimationById(estimationId, companyId);
+  async updateItem(estimationId: string, itemId: string, companyId: string, data: UpdateEstimationItemDTO, user?: any) {
+    const estimation = await this.getEstimationById(estimationId, companyId, user);
     const latestVersion = estimation.versions[0];
     
     // Safety check: ensure the item belongs to the latest version of this estimation
@@ -64,8 +65,8 @@ export class EstimationService {
     return updatedItem;
   }
 
-  async deleteItem(estimationId: string, itemId: string, companyId: string) {
-    const estimation = await this.getEstimationById(estimationId, companyId);
+  async deleteItem(estimationId: string, itemId: string, companyId: string, user?: any) {
+    const estimation = await this.getEstimationById(estimationId, companyId, user);
     const latestVersion = estimation.versions[0];
     
     const item = latestVersion.items.find((i: any) => i.id === itemId);
@@ -79,8 +80,8 @@ export class EstimationService {
     await this.estimationRepository.recalculateTotal(latestVersion.id);
   }
 
-  async requestApproval(id: string, companyId: string, requestedById: string, designatedApproverId: string, notes?: string) {
-    const estimation = await this.getEstimationById(id, companyId);
+  async requestApproval(id: string, companyId: string, requestedById: string, designatedApproverId: string, notes?: string, user?: any) {
+    const estimation = await this.getEstimationById(id, companyId, user);
     const latestVersion = estimation.versions[0];
 
     if (latestVersion.status !== 'DRAFT') {
@@ -94,8 +95,8 @@ export class EstimationService {
     });
   }
 
-  async approveEstimation(id: string, companyId: string, userId: string, isSuperadmin: boolean) {
-    const estimation = await this.getEstimationById(id, companyId);
+  async approveEstimation(id: string, companyId: string, userId: string, isSuperadmin: boolean, user?: any) {
+    const estimation = await this.getEstimationById(id, companyId, user);
     const latestVersion = estimation.versions[0];
 
     if (latestVersion.status === 'APPROVED') {
@@ -114,8 +115,8 @@ export class EstimationService {
     return this.estimationRepository.approve(id, companyId);
   }
 
-  async getVersions(estimationId: string, companyId: string) {
-    await this.getEstimationById(estimationId, companyId);
+  async getVersions(estimationId: string, companyId: string, user?: any) {
+    await this.getEstimationById(estimationId, companyId, user);
     return this.estimationRepository.getVersions(estimationId);
   }
 
@@ -141,6 +142,14 @@ export class EstimationService {
 
     if (version.status !== 'APPROVED') {
       throw new Error('Only approved estimation versions can be pushed to procurement');
+    }
+
+    // Block duplicate pushes to procurement
+    const alreadyPushed = await prisma.procurementRequest.findFirst({
+      where: { estimationVersionId: versionId, companyId }
+    });
+    if (alreadyPushed) {
+      throw new Error('This estimation version has already been pushed to procurement.');
     }
 
     return this.estimationRepository.createProcurementFromVersion(version, companyId, userId, estimation.projectId);

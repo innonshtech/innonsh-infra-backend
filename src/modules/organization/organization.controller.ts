@@ -7,6 +7,7 @@ import {
   updateBranchSchema, 
   createDepartmentSchema, 
   createDesignationSchema, 
+  updateDesignationSchema,
   createDocumentSchema, 
   updateSettingsSchema 
 } from './organization.dto';
@@ -138,6 +139,17 @@ export class OrganizationController {
       const validatedData = createDesignationSchema.parse(req.body);
       const designation = await organizationService.createDesignation(companyId, validatedData);
       sendResponse(res, 201, 'Designation created successfully', designation);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateDesignation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user!.company_id;
+      const validatedData = updateDesignationSchema.parse(req.body);
+      const designation = await organizationService.updateDesignation(req.params.id as string, companyId, validatedData);
+      sendResponse(res, 200, 'Designation updated successfully', designation);
     } catch (error) {
       next(error);
     }

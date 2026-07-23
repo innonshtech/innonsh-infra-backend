@@ -86,6 +86,16 @@ export class FinanceRepository {
     });
   }
 
+  async updateTransactionStatus(id: string, companyId: string, status: string, paymentMode?: string) {
+    return (prisma as any).transaction.updateMany({
+      where: { id, companyId },
+      data: {
+        status,
+        ...(paymentMode ? { paymentMode } : {})
+      }
+    });
+  }
+
   // --- Payment Repos ---
 
   async findAllPayments(companyId: string) {

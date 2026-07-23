@@ -31,6 +31,7 @@ export const updateTaskSchema = z.object({
   assignedWorkerId: z.string().uuid().optional().nullable(),
   completionNotes: z.string().optional().nullable(),
   completionImageUrl: z.string().optional().nullable(),
+  completionImages: z.array(z.string()).optional(),
 });
 
 export type CreateTaskDTO = z.infer<typeof createTaskSchema>;

@@ -23,10 +23,10 @@ export const createProjectSchema = z.object({
 });
 
 export const updateProjectSchema = z.object({
-  name: z.string().min(3).optional(),
-  description: z.string().optional(),
+  name: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
   status: z.string().optional(),
-  budget: z.number().positive().optional(),
+  budget: z.number().optional().or(z.string().optional().transform(val => val ? parseFloat(val) : undefined)),
   code: z.string().nullable().optional(),
   projectType: z.string().nullable().optional(),
   priority: z.string().nullable().optional(),
@@ -36,6 +36,9 @@ export const updateProjectSchema = z.object({
   clientEmail: z.string().nullable().optional(),
   contractNumber: z.string().nullable().optional(),
   workOrderNumber: z.string().nullable().optional(),
+  startDate: z.string().nullable().optional().transform(val => val ? new Date(val) : undefined),
+  endDate: z.string().nullable().optional().transform(val => val ? new Date(val) : undefined),
+  targetEndDate: z.string().nullable().optional().transform(val => val ? new Date(val) : undefined),
   address: z.string().nullable().optional(),
   city: z.string().nullable().optional(),
   state: z.string().nullable().optional(),

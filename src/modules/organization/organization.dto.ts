@@ -37,6 +37,12 @@ export const createDepartmentSchema = z.object({
 
 export const createDesignationSchema = z.object({
   name: z.string().min(1, 'Designation name is required'),
+  permissions: z.array(z.string()).optional(),
+});
+
+export const updateDesignationSchema = z.object({
+  name: z.string().optional(),
+  permissions: z.array(z.string()).optional(),
 });
 
 export const createDocumentSchema = z.object({

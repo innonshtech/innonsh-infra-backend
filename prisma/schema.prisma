@@ -51,6 +51,7 @@ model Company {
   attendanceUploads  AttendanceUpload[]
   contracts          Contract[]
   notifications      Notification[]
+  aiBoards           AiBoard[]
 
   // Organization Module Additions
   logo                String?
@@ -101,6 +102,7 @@ model User {
   designatedForEstimations EstimationVersion[] @relation("EstimationDesignatedApprover")
   approvedEstimations     EstimationVersion[] @relation("EstimationApprovedBy")
   assignedTasks           ProjectTask[]       @relation("UserTasks")
+  aiBoards                AiBoard[]
 }
 
 model Role {
@@ -188,6 +190,7 @@ model ProjectTask {
   imageUrl     String?
   completionNotes     String?
   completionImageUrl  String?
+  proofHistory        Json?
   project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parentTask   ProjectTask?  @relation("SubTasks", fields: [parentId], references: [id])
   subTasks     ProjectTask[] @relation("SubTasks")
@@ -401,6 +404,10 @@ model Transaction {
   date        DateTime  @default(now())
   description String?
   referenceId String?
+  status      String    @default("COMPLETED")
+  paymentMode String?
+  projectId   String?
+  metadata    Json?
   createdAt   DateTime  @default(now())
   payments    Payment[]
   company     Company   @relation(fields: [companyId], references: [id])
@@ -869,6 +876,7 @@ model Designation {
   id              String    @id @default(uuid())
   companyId       String
   name            String
+  permissions     String[]  @default([])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -950,4 +958,17 @@ model ProjectRisk {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model AiBoard {
+  id        String   @id @default(uuid())
+  companyId String
+  userId    String
+  title     String
+  messages  Json     // [{ role: 'user' | 'model', text: string, timestamp: DateTime }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

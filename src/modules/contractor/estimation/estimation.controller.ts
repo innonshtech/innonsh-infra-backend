@@ -12,7 +12,7 @@ export class EstimationController {
 
   getAllEstimations = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const estimations = await this.estimationService.getAllEstimations(req.user!.company_id);
+      const estimations = await this.estimationService.getAllEstimations(req.user!.company_id, req.user);
       sendResponse(res, 200, 'Estimations fetched successfully', estimations);
     } catch (error) {
       next(error);
@@ -21,7 +21,7 @@ export class EstimationController {
 
   getEstimationById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const estimation = await this.estimationService.getEstimationById(req.params.id as string, req.user!.company_id);
+      const estimation = await this.estimationService.getEstimationById(req.params.id as string, req.user!.company_id, req.user);
       sendResponse(res, 200, 'Estimation fetched successfully', estimation);
     } catch (error) {
       next(error);
@@ -40,7 +40,7 @@ export class EstimationController {
 
   updateEstimation = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const estimation = await this.estimationService.updateEstimation(req.params.id as string, req.user!.company_id, req.body);
+      const estimation = await this.estimationService.updateEstimation(req.params.id as string, req.user!.company_id, req.body, req.user);
       sendResponse(res, 200, 'Estimation updated successfully', estimation);
     } catch (error) {
       next(error);
@@ -49,7 +49,7 @@ export class EstimationController {
 
   deleteEstimation = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await this.estimationService.deleteEstimation(req.params.id as string, req.user!.company_id);
+      await this.estimationService.deleteEstimation(req.params.id as string, req.user!.company_id, req.user);
       sendResponse(res, 200, 'Estimation deleted successfully');
     } catch (error) {
       next(error);
@@ -59,7 +59,7 @@ export class EstimationController {
   addItem = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const validatedData = addEstimationItemSchema.parse(req.body);
-      const item = await this.estimationService.addItem(req.params.id as string, req.user!.company_id, validatedData);
+      const item = await this.estimationService.addItem(req.params.id as string, req.user!.company_id, validatedData, req.user);
       sendResponse(res, 201, 'Item added successfully', item);
     } catch (error) {
       next(error);
@@ -73,7 +73,8 @@ export class EstimationController {
         req.params.id as string,
         req.params.itemId as string,
         req.user!.company_id,
-        validatedData
+        validatedData,
+        req.user
       );
       sendResponse(res, 200, 'Item updated successfully', item);
     } catch (error) {
@@ -86,7 +87,8 @@ export class EstimationController {
       await this.estimationService.deleteItem(
         req.params.id as string,
         req.params.itemId as string,
-        req.user!.company_id
+        req.user!.company_id,
+        req.user
       );
       sendResponse(res, 200, 'Item removed successfully');
     } catch (error) {
@@ -96,8 +98,8 @@ export class EstimationController {
 
   approveEstimation = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const isSuperadmin = req.user!.permissions?.includes('*');
-      await this.estimationService.approveEstimation(req.params.id as string, req.user!.company_id, req.user!.id, isSuperadmin);
+      const isSuperadmin = req.user!.permissions?.includes('*') || (req.user!.role as any)?.toUpperCase() === 'OWNER';
+      await this.estimationService.approveEstimation(req.params.id as string, req.user!.company_id, req.user!.id, isSuperadmin, req.user);
       sendResponse(res, 200, 'Estimation approved successfully');
     } catch (error) {
       next(error);
@@ -115,7 +117,8 @@ export class EstimationController {
         req.user!.company_id,
         req.user!.id,
         designatedApproverId,
-        notes
+        notes,
+        req.user
       );
       sendResponse(res, 200, 'Approval requested successfully');
     } catch (error) {

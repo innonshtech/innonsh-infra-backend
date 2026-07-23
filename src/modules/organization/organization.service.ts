@@ -210,7 +210,7 @@ export class OrganizationService {
     return list;
   }
 
-  async createDesignation(companyId: string, data: { name: string }) {
+  async createDesignation(companyId: string, data: { name: string, permissions?: string[] }) {
     const exists = await prisma.designation.findFirst({
       where: { companyId, name: { equals: data.name, mode: 'insensitive' } }
     });
@@ -221,6 +221,23 @@ export class OrganizationService {
       data: {
         companyId,
         name: data.name,
+        permissions: data.permissions || [],
+      },
+    });
+  }
+
+  async updateDesignation(id: string, companyId: string, data: { name?: string, permissions?: string[] }) {
+    const des = await (prisma as any).designation.findFirst({
+      where: { id, companyId },
+    });
+    if (!des) {
+      throw new AppError('Designation not found', 404);
+    }
+    return (prisma as any).designation.update({
+      where: { id },
+      data: {
+        name: data.name ?? des.name,
+        permissions: data.permissions ?? (des.permissions || []),
       },
     });
   }

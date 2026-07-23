@@ -57,6 +57,8 @@ router.get('/transactions', authMiddleware, contractorGuard, allowPermissions(['
  *         description: Transaction recorded
  */
 router.post('/transactions', authMiddleware, contractorGuard, allowPermissions('finance.manage'), controller.createTransaction);
+router.patch('/transactions/:id/approve', authMiddleware, contractorGuard, allowPermissions('finance.manage'), controller.approveTransaction);
+router.patch('/transactions/:id/reject', authMiddleware, contractorGuard, allowPermissions('finance.manage'), controller.rejectTransaction);
 
 
 // --- Invoices ---

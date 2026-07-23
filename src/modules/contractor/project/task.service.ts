@@ -105,6 +105,39 @@ export class TaskService {
     if (data.startDate) updateData.startDate = new Date(data.startDate);
     if (data.endDate) updateData.endDate = new Date(data.endDate);
 
+    // Maintain multi-stage proofHistory array for multi-stage site photo logs (e.g. 70%, 100%)
+    if (data.completionImageUrl || data.imageUrl || (data as any).completionImages?.length > 0) {
+      const existingTask = await (prisma as any).projectTask.findUnique({ where: { id } });
+      let existingHistory: any[] = [];
+      if (existingTask?.proofHistory) {
+        try {
+          existingHistory = typeof existingTask.proofHistory === 'string'
+            ? JSON.parse(existingTask.proofHistory)
+            : existingTask.proofHistory;
+        } catch { existingHistory = []; }
+      }
+      if (!Array.isArray(existingHistory)) existingHistory = [];
+
+      const rawImages: string[] = (data as any).completionImages && Array.isArray((data as any).completionImages) && (data as any).completionImages.length > 0
+        ? (data as any).completionImages
+        : [data.completionImageUrl || data.imageUrl].filter(Boolean);
+
+      for (const imgUrl of rawImages) {
+        if (!imgUrl) continue;
+        const newEntry = {
+          url: imgUrl,
+          progress: data.progress !== undefined ? data.progress : existingTask?.progress || 0,
+          notes: data.completionNotes || data.description || '',
+          timestamp: new Date().toISOString()
+        };
+        if (!existingHistory.some(h => h.url === newEntry.url)) {
+          existingHistory.unshift(newEntry);
+        }
+      }
+      updateData.proofHistory = existingHistory;
+      delete (updateData as any).completionImages;
+    }
+
     const updatedTask = await (prisma as any).projectTask.update({
       where: { id },
       data: updateData,

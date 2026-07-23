@@ -131,6 +131,52 @@ router.post('/generate', async (req: any, res) => {
       }
     }
 
+    // 4. Fallback/Seed demo notifications if total notifications for this company is 0
+    const totalNotifs = await (prisma as any).notification.count({
+      where: { companyId }
+    });
+    
+    if (totalNotifs === 0 && created.length === 0) {
+      // Seed welcome
+      await (prisma as any).notification.create({
+        data: {
+          companyId,
+          type: 'WELCOME',
+          title: 'Welcome to Innonsh ERP!',
+          message: 'Get started by exploring Projects, Estimation, and setting up your company profile in settings.',
+          referenceId: null,
+          referenceType: null
+        }
+      });
+      created.push('WELCOME: Welcome notification');
+
+      // Seed mock low stock
+      await (prisma as any).notification.create({
+        data: {
+          companyId,
+          type: 'LOW_STOCK',
+          title: 'Low Stock: Cement OPC 53 (Warehouse A)',
+          message: 'Only 8 bags remaining in Warehouse A. Reorder threshold is 20 bags.',
+          referenceId: 'demo-item-1',
+          referenceType: 'INVENTORY'
+        }
+      });
+      created.push('LOW_STOCK: Demo Cement warning');
+
+      // Seed mock overdue invoice
+      await (prisma as any).notification.create({
+        data: {
+          companyId,
+          type: 'OVERDUE_INVOICE',
+          title: 'Invoice INV-2026-004 is overdue',
+          message: '₹45,000 from Apex Builders is past due date by 3 days.',
+          referenceId: 'demo-invoice-1',
+          referenceType: 'INVOICE'
+        }
+      });
+      created.push('OVERDUE_INVOICE: Demo invoice overdue');
+    }
+
     res.json({ success: true, data: { generated: created.length, details: created } });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

@@ -1,4 +1,5 @@
 import { prisma } from '../../../config/prisma.config';
+import { AppError } from '../../../middleware/error.middleware';
 
 export class LabourRepository {
   // ─── Workers ───
@@ -102,9 +103,15 @@ export class LabourRepository {
 
   // ─── Payroll ───
   async getPayroll(companyId: string, startDate: string, endDate: string, projectId?: string) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
     const where: any = {
       companyId,
-      date: { gte: new Date(startDate), lte: new Date(endDate) }
+      date: { gte: start, lte: end }
     };
     if (projectId) where.projectId = projectId;
 
@@ -134,6 +141,54 @@ export class LabourRepository {
     const totalWorkers = breakdown.length;
 
     return { totalPayroll, totalWorkers, breakdown };
+  }
+
+  async runPayrollBatch(companyId: string, startDate: string, endDate: string, projectId?: string, remarks?: string) {
+    const payroll = await this.getPayroll(companyId, startDate, endDate, projectId);
+    
+    if (payroll.totalPayroll <= 0) {
+      throw new AppError('No payroll amounts found to process for the selected date range', 400);
+    }
+
+    // Block duplicate pending payroll runs for the same period
+    const pendingTransactions = await (prisma as any).transaction.findMany({
+      where: {
+        companyId,
+        category: 'LABOUR_COST',
+        status: 'PENDING_APPROVAL'
+      }
+    });
+
+    const isDuplicate = pendingTransactions.some((t: any) => {
+      const meta = t.metadata as any;
+      return meta && meta.startDate === startDate && meta.endDate === endDate;
+    });
+
+    if (isDuplicate) {
+      throw new AppError('A payroll batch for this exact period is already pending approval in Finance.', 400);
+    }
+
+    const transaction = await (prisma as any).transaction.create({
+      data: {
+        companyId,
+        type: 'EXPENSE',
+        category: 'LABOUR_COST',
+        amount: payroll.totalPayroll,
+        date: new Date(),
+        description: remarks || `Labour Payroll (${startDate} to ${endDate}) - ${payroll.totalWorkers} workers`,
+        referenceId: `PAYROLL_${Date.now()}`,
+        status: 'PENDING_APPROVAL',
+        projectId: projectId || null,
+        metadata: {
+          startDate,
+          endDate,
+          totalWorkers: payroll.totalWorkers,
+          breakdown: payroll.breakdown
+        }
+      }
+    });
+
+    return transaction;
   }
 
   // ─── Attendance Redesign Extensions ───
@@ -176,8 +231,6 @@ export class LabourRepository {
     };
     if (projectId) {
       where.projectId = projectId;
-    } else {
-      where.projectId = null;
     }
 
     return (prisma as any).attendance.updateMany({

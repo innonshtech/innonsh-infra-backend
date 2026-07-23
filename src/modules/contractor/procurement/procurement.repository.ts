@@ -9,6 +9,7 @@ export class ProcurementRepository {
       where: { companyId },
       include: {
         project: { select: { name: true } },
+        requestedBy: { select: { firstName: true, lastName: true } },
         items: true,
         _count: { select: { purchaseOrders: true } }
       },

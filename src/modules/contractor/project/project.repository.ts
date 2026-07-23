@@ -5,7 +5,7 @@ export class ProjectRepository {
   private getProjectWhereClause(companyId: string, user?: any) {
     if (!user) return { companyId };
     
-    const hasFullAccess = user.permissions?.includes('*') || user.permissions?.includes('projects.manage');
+    const hasFullAccess = user.permissions?.includes('*') || user.role?.toUpperCase() === 'OWNER';
     if (hasFullAccess) {
       return { companyId };
     }
