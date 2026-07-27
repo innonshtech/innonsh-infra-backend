@@ -13,4 +13,20 @@ router.get('/sessions/:id', controller.getSessionById);
 router.post('/chat', controller.chat);
 router.delete('/sessions/:id', controller.deleteSession);
 
+// New AI ERP Modules
+router.get('/land-plots', controller.getLandPlots);
+router.post('/land-analysis', controller.analyzeLandPlot);
+
+router.get('/jv-agreements', controller.getJVAgreements);
+router.post('/jv-analysis', controller.analyzeJVAgreement);
+
+router.get('/feasibility-studies', controller.getFeasibilityStudies);
+router.post('/feasibility', controller.calculateFeasibility);
+
+router.get('/approval-tasks', controller.getApprovalTasks);
+router.post('/approval-delay', controller.predictApprovalDelay);
+
+router.get('/property-plans', controller.getPropertyPlans);
+router.post('/property-planning', controller.generatePropertyPlan);
+
 export default router;

@@ -52,6 +52,19 @@ model Company {
   contracts          Contract[]
   notifications      Notification[]
   aiBoards           AiBoard[]
+  lands              Land[]
+  landOwners         LandOwner[]
+  landOwnerships     LandOwnership[]
+  jvProjects         JVProject[]
+  partners           Partner[]
+  jvAgreements       JVAgreement[]
+  feasibilities      Feasibility[]
+  zoningRules        ZoningRule[]
+  municipalRules     MunicipalRule[]
+  marketAnalyses     MarketAnalysis[]
+  approvals          Approval[]
+  propertyPlans      PropertyPlan[]
+
 
   // Organization Module Additions
   logo                String?
@@ -169,6 +182,7 @@ model Project {
   milestones          ProjectMilestone[]
   resourcePlans       ProjectResourcePlan[]
   risks               ProjectRisk[]
+  approvals           Approval[]
 }
 
 model ProjectTask {
@@ -972,3 +986,458 @@ model AiBoard {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model Land {
+  id               String                 @id @default(uuid())
+  companyId        String
+  landCode         String
+  title            String
+  village          String
+  taluka           String
+  district         String
+  state            String
+  surveyNumber     String
+  subSurveyNumber  String?
+  area             Float
+  unit             String                 // acre/hectare/sqft
+  latitude         Float?
+  longitude        Float?
+  googleMapLink    String?
+  landType         String
+  zoning           String
+  currentStatus    String
+  askingPrice      Float
+  marketValue      Float?
+  purchasePrice    Float?
+  remarks          String?
+  createdBy        String
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ownerships       LandOwnership[]
+  documents        LandDocument[]
+  soilReports      SoilReport[]
+  encumbrances     Encumbrance[]
+  infrastructures  NearbyInfrastructure[]
+  notifications    GovernmentNotification[]
+  aiScores         LandAIScore[]
+  jvProjects       JVProject[]
+  feasibilities    Feasibility[]
+}
+
+model LandOwner {
+  id             String          @id @default(uuid())
+  companyId      String
+  name           String
+  mobile         String
+  email          String?
+  aadhaar        String?
+  pan            String?
+  address        String?
+  bankDetails    String?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ownerships     LandOwnership[]
+}
+
+model LandOwnership {
+  id                  String    @id @default(uuid())
+  companyId           String
+  landId              String
+  ownerId             String
+  ownershipPercentage Float
+  ownershipType       String    // Freehold, leasehold
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  land                Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
+  owner               LandOwner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model LandDocument {
+  id           String    @id @default(uuid())
+  landId       String
+  documentType String    // Sale Deed, 7/12 Extract, Mutation Entry, NA Order, Encumbrance Certificate, Tax Receipt, Layout Map
+  documentName String
+  fileUrl      String
+  expiryDate   DateTime?
+  verified     Boolean   @default(false)
+  uploadedBy   String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  land         Land      @relation(fields: [landId], references: [id], onDelete: Cascade)
+}
+
+model SoilReport {
+  id              String   @id @default(uuid())
+  landId          String
+  soilType        String
+  bearingCapacity Float
+  waterLevel      Float?
+  reportFile      String?
+  testedBy        String?
+  reportDate      DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  land            Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+}
+
+model Encumbrance {
+  id                    String   @id @default(uuid())
+  landId                String
+  bankLoan              Float?
+  courtCase             String?
+  mortgage              String?
+  governmentRestriction String?
+  remarks               String?
+  status                String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  land                  Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+}
+
+model NearbyInfrastructure {
+  id        String @id @default(uuid())
+  landId    String
+  type      String // Highway, Metro, Railway, School, Hospital, Airport
+  name      String
+  distance  Float  // in kilometers
+  createdAt DateTime @default(now())
+
+  land      Land   @relation(fields: [landId], references: [id], onDelete: Cascade)
+}
+
+model GovernmentNotification {
+  id               String   @id @default(uuid())
+  landId           String
+  department       String
+  notificationType String
+  description      String
+  date             DateTime
+  status           String
+  document         String?
+  createdAt        DateTime @default(now())
+
+  land             Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+}
+
+model LandAIScore {
+  id                String   @id @default(uuid())
+  landId            String
+  overallScore      Float
+  developmentScore  Float
+  riskScore         Float
+  appreciationScore Float
+  recommendedPrice  Float?
+  futureValue       Float?
+  summary           String
+  createdAt         DateTime @default(now())
+
+  land              Land     @relation(fields: [landId], references: [id], onDelete: Cascade)
+}
+
+model JVProject {
+  id            String               @id @default(uuid())
+  companyId     String
+  landId        String
+  name          String
+  projectType   String
+  status        String
+  startDate     DateTime
+  endDate       DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  land          Land                 @relation(fields: [landId], references: [id], onDelete: Cascade)
+  agreements    JVAgreement[]
+  revenueShares RevenueShare[]
+  profitShares  ProfitShare[]
+  areaShares    AreaShare[]
+  roiAnalyses   ROIAnalysis[]
+  aiRecs        JVAIRecommendation[]
+}
+
+model Partner {
+  id           String         @id @default(uuid())
+  companyId    String
+  type         String         // Land Owner, Builder, Investor
+  name         String
+  company      String?
+  mobile       String
+  email        String?
+  address      String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  companyRef   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  wallets      PartnerWallet[]
+}
+
+model JVAgreement {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  agreementType   String
+  agreementNumber String
+  document        String?
+  effectiveDate   DateTime
+  expiryDate      DateTime?
+  status          String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project         JVProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model RevenueShare {
+  id        String    @id @default(uuid())
+  projectId String
+  partnerId String
+  percentage Float
+  createdAt DateTime  @default(now())
+
+  project   JVProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ProfitShare {
+  id        String    @id @default(uuid())
+  projectId String
+  partnerId String
+  percentage Float
+  createdAt DateTime  @default(now())
+
+  project   JVProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model AreaShare {
+  id        String    @id @default(uuid())
+  projectId String
+  partnerId String
+  area      Float
+  unit      String
+  createdAt DateTime  @default(now())
+
+  project   JVProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model PartnerWallet {
+  id             String   @id @default(uuid())
+  partnerId      String
+  balance        Float    @default(0)
+  totalPaid      Float    @default(0)
+  totalReceived  Float    @default(0)
+  pendingAmount  Float    @default(0)
+  updatedAt      DateTime @updatedAt
+
+  partner        Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+model ROIAnalysis {
+  id              String    @id @default(uuid())
+  projectId       String
+  investment      Float
+  expectedRevenue Float
+  expectedProfit  Float
+  roi             Float
+  paybackPeriod   Float
+  createdAt       DateTime  @default(now())
+
+  project         JVProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model JVAIRecommendation {
+  id             String    @id @default(uuid())
+  projectId      String
+  bestModel      String
+  riskScore      Float
+  roiPrediction  String
+  recommendation String
+  createdAt      DateTime  @default(now())
+
+  project        JVProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Feasibility {
+  id               String          @id @default(uuid())
+  companyId        String
+  landId           String
+  projectName      String
+  fsi              Float
+  tdr              Float?
+  roadWidth        Float
+  plotArea         Float
+  saleableArea     Float?
+  constructionArea Float?
+  constructionCost Float
+  marketRate       Float
+  expectedRevenue  Float?
+  expectedProfit   Float?
+  cashFlow         String?
+  breakEven        Float?
+  timeline         String?
+  status           String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  land             Land            @relation(fields: [landId], references: [id], onDelete: Cascade)
+  aiReports        FeasibilityAI[]
+}
+
+model ZoningRule {
+  id                 String   @id @default(uuid())
+  companyId          String
+  zoneType           String
+  fsi                Float
+  heightLimit        Float?
+  setback            String?
+  parkingRequirement String?
+  createdAt          DateTime @default(now())
+
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model MunicipalRule {
+  id          String   @id @default(uuid())
+  companyId   String
+  city        String
+  ruleName    String
+  description String?
+  value       String
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model MarketAnalysis {
+  id                 String   @id @default(uuid())
+  companyId          String
+  location           String
+  avgSellingPrice    Float
+  demand             String
+  competitorProjects String?
+  absorptionRate     Float?
+  createdAt          DateTime @default(now())
+
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model FeasibilityAI {
+  id                 String      @id @default(uuid())
+  feasibilityId      String
+  profitScore        Float
+  riskScore          Float
+  successProbability Float
+  recommendation     String
+  summary            String
+  createdAt          DateTime    @default(now())
+
+  feasibility        Feasibility @relation(fields: [feasibilityId], references: [id], onDelete: Cascade)
+}
+
+model Approval {
+  id                   String             @id @default(uuid())
+  companyId            String
+  projectId            String
+  approvalType         String
+  authority            String
+  applicationNumber    String
+  submittedDate        DateTime
+  expectedApprovalDate DateTime?
+  approvedDate         DateTime?
+  status               String
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  company              Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project              Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documents            ApprovalDocument[]
+  checklists           ApprovalChecklist[]
+  timelines            ApprovalTimeline[]
+  aiReports            ApprovalAI[]
+}
+
+model ApprovalDocument {
+  id           String   @id @default(uuid())
+  approvalId   String
+  documentName String
+  documentType String
+  file         String
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  approval     Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalChecklist {
+  id         String   @id @default(uuid())
+  approvalId String
+  item       String
+  completed  Boolean  @default(false)
+  remarks    String?
+  createdAt  DateTime @default(now())
+
+  approval   Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalTimeline {
+  id         String   @id @default(uuid())
+  approvalId String
+  stage      String
+  date       DateTime
+  remarks    String?
+  createdAt  DateTime @default(now())
+
+  approval   Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalAI {
+  id                    String   @id @default(uuid())
+  approvalId            String
+  delayProbability      Float
+  missingDocuments      String
+  nextStep              String
+  estimatedApprovalDays Float
+  riskLevel             String
+  summary               String
+  createdAt             DateTime @default(now())
+
+  approval              Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+}
+
+model PropertyPlan {
+  id               String   @id @default(uuid())
+  companyId        String
+  projectName      String
+  plotSize         Float
+  roadWidth        Float
+  fsi              Float
+  budget           Float
+  targetCustomer   String
+  unitMix          String?
+  parkingLayout    String?
+  amenities        String?
+  clubHouse        String?
+  landscape        String?
+  commercialSpace  String?
+  elevationConcept String?
+  costEstimates    String?
+  saleableArea     Float?
+  svgFloorPlan     String?  @db.Text
+  dxfContent       String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
