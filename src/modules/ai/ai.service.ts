@@ -1013,6 +1013,17 @@ export class AiService {
       requestedFloors?: number;
       version?: string;
       parentPlanId?: string | null;
+      facing?: string;
+      parkingType?: string;
+      gardenRequired?: boolean;
+      swimmingPool?: boolean;
+      commercialShops?: boolean;
+      flatMix?: string;
+      liftCount?: number;
+      staircaseCount?: number;
+      landCost?: number;
+      expectedSalesRate?: number;
+      flatsPerFloor?: number;
     }
   ) {
     const prompt = `
@@ -1026,25 +1037,67 @@ export class AiService {
       - Target Customer: ${data.targetCustomer}
       - Setbacks: Front Setback: ${data.frontSetback ?? 6.0}m, Rear Setback: ${data.rearSetback ?? 3.0}m, Left/Right Side Setbacks: ${data.sideSetbacks ?? 3.0}m
       - Requested Target Floors: ${data.requestedFloors ?? 1}
+      - Facing direction: ${data.facing ?? 'East'}
+      - Parking Type: ${data.parkingType ?? 'Basement'}
+      - Garden Required: ${data.gardenRequired ? 'Yes' : 'No'}
+      - Swimming Pool: ${data.swimmingPool ? 'Yes' : 'No'}
+      - Commercial Shops: ${data.commercialShops ? 'Yes' : 'No'}
+      - Preferred Flat Mix: ${data.flatMix ?? '2BHK + 3BHK'}
+      - Lift Count: ${data.liftCount ?? 2}
+      - Staircase Count: ${data.staircaseCount ?? 2}
+      - Land Purchase Cost: ${data.landCost ? `INR ${data.landCost}` : 'Not Provided by builder (Do NOT invent or guess land cost)'}
+      - Expected Sales Rate (per Sq. Ft. Saleable Area): ${data.expectedSalesRate ? `INR ${data.expectedSalesRate}` : 'Not Provided by builder (Do NOT invent or guess revenue)'}
+      - Typical Flats Per Floor: ${data.flatsPerFloor ?? 2} flats per typical floor
 
-      You must calculate the optimal built-up area, ground coverage percentage, total unit count, parking spaces, FSI utilization, saleable area, unit mix, parking layout, amenities, clubhouse, landscaping, and commercial space splitting.
+      You must calculate:
+      1. Optimal recommended floors based on the bylaws and requested floors (explain the setback or FSI math limit in decisionReason).
+      2. Ground coverage percentage, total unit count, parking spaces, FSI utilization, saleable area.
+      3. Project financials: Cost per sqft construction, total estimated construction cost, estimated revenue, expected profit, ROI percentage, and estimated break-even period in months.
+      4. Structured score metrics (0-100) representing Planning, Profitability, Parking, Ventilation, and Market Fit.
+      5. Bulleted lists of risk factors and recommended compliance/design items.
+      6. Detailed unit mix layout, landscaping, amenities, and elevation aesthetics.
       
       Additionally, you must design a simplified 2D layout map coordinates array within a 200x200 grid system representing the plot layout.
       The room coordinates should have integer values (0 to 200). The first item should define the boundary / plot outline (e.g. name: "Plot Boundary", x: 10, y: 10, w: 180, h: 180). Additional blocks (Building Blocks, Parking Ground, Garden, Clubhouse) should fit inside this boundary keeping the setback margins in mind.
+
+      CRITICAL BUSINESS LOGIC CONSTRAINTS (YOU MUST COMPLY):
+      *   **Symmetrical Flats Count:** The "totalUnits" MUST be equal to "floors" multiplied by the "flatsPerFloor" input parameter (so they split symmetrically per floor). If floors is 6 and flatsPerFloor is 3, totalUnits MUST be 18.
+      *   **No Land Cost Invention:** If Land Purchase Cost was not provided, "landCost" must be 0.
+      *   **No Revenue Invention:** If Expected Sales Rate was not provided, "estimatedRevenue", "expectedProfit", and "roi" must be 0. Do NOT guess sales prices or profit margins.
+      *   **Construction cost formula:** Construction Cost = Built-up Area × Cost per Sqft (Use costPerSqft = 2500).
+      *   **Parking count math:** Resident Parking = totalUnits × 1 slot. Visitor Parking = Resident Parking × 0.25 (Clipped to nearest integer). Total parking = Resident Parking + Visitor Parking.
+      *   **Minimal Hallucination:** Do not invent elaborate custom landscaping or facade design styles unless requested. If generic, use standard placeholder briefs (e.g. "Standard modern structure" or "Municipal landscaping layout").
 
       You must respond in strict JSON format matching this schema:
       {
         "saleableArea": <number representing calculated total saleable area in sq. ft.>,
         "floors": <number representing calculated optimal total floors based on requested floors and rules>,
-        "totalUnits": <number representing total calculated flat/unit count>,
-        "parkingSpaces": <number representing total calculated parking slots count>,
+        "totalUnits": <number representing total calculated flat/unit count matching floors * flatsPerFloor>,
+        "parkingSpaces": <number representing total calculated parking slots count based on parking formula>,
         "builtUpArea": <number representing total built-up area in sq. ft.>,
         "fsiUsed": <number representing calculated FSI utilization multiplier, e.g. 2.15>,
         "coverage": <number representing building ground footprint coverage percentage, e.g. 42.8>,
+        "decisionReason": "<detailed reason text explaining recommended floors choice relative to requested target floors, e.g. due to setback limits>",
+        "confidenceScore": <confidence percentage, e.g. 95>,
+        "costPerSqft": 2500,
+        "estimatedCost": <total estimated construction cost in INR matching builtUpArea * 2500>,
+        "estimatedRevenue": <estimated total sales revenue in INR, e.g. saleableArea * expectedSalesRate, or 0 if not provided>,
+        "expectedProfit": <expected profit in INR, e.g. revenue - cost, or 0 if not provided>,
+        "roi": <ROI percentage, or 0 if not provided>,
+        "breakEvenMonths": <break even timeline in months, or 18 if not provided>,
+        "overallScore": <overall planning score, e.g. 92>,
+        "planningScore": <planning score, e.g. 95>,
+        "profitScore": <profitability score, e.g. 91>,
+        "parkingScore": <parking score, e.g. 88>,
+        "ventilationScore": <ventilation score, e.g. 93>,
+        "marketFitScore": <market fit score, e.g. 90>,
+        "riskLevel": "<LOW | MEDIUM | HIGH>",
+        "riskList": ["risk 1 text", "risk 2 text", ...],
+        "recommendations": ["recommendation 1 text", "recommendation 2 text", ...],
         "unitMix": "<detailed configuration breakdown text>",
         "parkingLayout": "<parking space slot count and guidelines text>",
         "amenities": "<amenities list text>",
-        "clubHouse": "<clubhouse features and area text>",
+        "clubHouse": "<clubhouse features and area reasoning text>",
         "landscape": "<landscape design text>",
         "commercialSpace": "<commercial spaces split text>",
         "elevationConcept": "<conceptual aesthetic facade text>",
@@ -1099,6 +1152,18 @@ export class AiService {
         sideSetbacks: data.sideSetbacks ?? 3.0,
         requestedFloors: data.requestedFloors ?? 1,
         
+        facing: data.facing ?? 'East',
+        parkingType: data.parkingType ?? 'Basement',
+        gardenRequired: data.gardenRequired ?? true,
+        swimmingPool: data.swimmingPool ?? true,
+        commercialShops: data.commercialShops ?? false,
+        flatMix: data.flatMix ?? '2BHK + 3BHK',
+        liftCount: data.liftCount ?? 2,
+        staircaseCount: data.staircaseCount ?? 2,
+        landCost: data.landCost ?? 0,
+        expectedSalesRate: data.expectedSalesRate ?? 0,
+        flatsPerFloor: data.flatsPerFloor ?? 2,
+
         floors: plan.floors ? Number(plan.floors) : (data.requestedFloors ?? 1),
         totalUnits: plan.totalUnits ? Number(plan.totalUnits) : 0,
         parkingSpaces: plan.parkingSpaces ? Number(plan.parkingSpaces) : 0,
@@ -1106,6 +1171,27 @@ export class AiService {
         fsiUsed: plan.fsiUsed ? Number(plan.fsiUsed) : 0,
         coverage: plan.coverage ? Number(plan.coverage) : 0,
         
+        decisionReason: plan.decisionReason || 'Recommended configuration complies with Pune setbacks and road-width FSI standards.',
+        confidenceScore: plan.confidenceScore ? Number(plan.confidenceScore) : 95,
+        
+        costPerSqft: plan.costPerSqft ? Number(plan.costPerSqft) : 2500,
+        estimatedCost: plan.estimatedCost ? Number(plan.estimatedCost) : 0,
+        estimatedRevenue: plan.estimatedRevenue ? Number(plan.estimatedRevenue) : 0,
+        expectedProfit: plan.expectedProfit ? Number(plan.expectedProfit) : 0,
+        roi: plan.roi ? Number(plan.roi) : 0,
+        breakEvenMonths: plan.breakEvenMonths ? Number(plan.breakEvenMonths) : 18,
+        
+        overallScore: plan.overallScore ? Number(plan.overallScore) : 90,
+        planningScore: plan.planningScore ? Number(plan.planningScore) : 90,
+        profitScore: plan.profitScore ? Number(plan.profitScore) : 90,
+        parkingScore: plan.parkingScore ? Number(plan.parkingScore) : 90,
+        ventilationScore: plan.ventilationScore ? Number(plan.ventilationScore) : 90,
+        marketFitScore: plan.marketFitScore ? Number(plan.marketFitScore) : 90,
+        
+        riskLevel: plan.riskLevel || 'LOW',
+        riskList: plan.riskList ? JSON.stringify(plan.riskList) : JSON.stringify([]),
+        recommendations: plan.recommendations ? JSON.stringify(plan.recommendations) : JSON.stringify([]),
+
         unitMix: plan.unitMix || 'N/A',
         parkingLayout: plan.parkingLayout || 'N/A',
         amenities: plan.amenities || 'N/A',

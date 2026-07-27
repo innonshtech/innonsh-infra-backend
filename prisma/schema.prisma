@@ -1432,6 +1432,19 @@ model PropertyPlan {
   rearSetback      Float?   @default(3.0)
   sideSetbacks     Float?   @default(3.0)
   requestedFloors  Int?     @default(1)
+  
+  // New Inputs
+  facing           String?  @default("East")
+  parkingType      String?  @default("Basement")
+  gardenRequired   Boolean? @default(true)
+  swimmingPool     Boolean? @default(true)
+  commercialShops  Boolean? @default(false)
+  flatMix          String?  @default("2BHK + 3BHK")
+  liftCount        Int?     @default(2)
+  staircaseCount   Int?     @default(2)
+  landCost         Float?   @default(0.0)
+  expectedSalesRate Float?  @default(0.0)
+  flatsPerFloor    Int?     @default(2)
 
   // AI-Derived Metrics
   floors           Int?     @default(1)
@@ -1440,6 +1453,31 @@ model PropertyPlan {
   builtUpArea      Float?   @default(0.0)
   fsiUsed          Float?   @default(0.0)
   coverage         Float?   @default(0.0)
+  
+  // AI Decisions & Explanations
+  decisionReason   String?  @db.Text
+  confidenceScore  Int?     @default(90)
+  
+  // Detailed Financials
+  costPerSqft      Float?   @default(2500.0)
+  estimatedCost    Float?   @default(0.0)
+  estimatedRevenue Float?   @default(0.0)
+  expectedProfit   Float?   @default(0.0)
+  roi              Float?   @default(0.0)
+  breakEvenMonths  Int?     @default(18)
+  
+  // Scores
+  overallScore     Int?     @default(90)
+  planningScore    Int?     @default(90)
+  profitScore      Int?     @default(90)
+  parkingScore     Int?     @default(90)
+  ventilationScore Int?     @default(90)
+  marketFitScore   Int?     @default(90)
+  
+  // Risk & Recommendations
+  riskLevel        String?  @default("LOW")
+  riskList         String?  @db.Text
+  recommendations  String?  @db.Text
 
   unitMix          String?
   parkingLayout    String?

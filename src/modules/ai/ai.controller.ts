@@ -62,7 +62,18 @@ const generatePropertyPlanSchema = z.object({
   sideSetbacks: z.number().optional(),
   requestedFloors: z.number().optional(),
   version: z.string().optional(),
-  parentPlanId: z.string().nullable().optional()
+  parentPlanId: z.string().nullable().optional(),
+  facing: z.string().optional(),
+  parkingType: z.string().optional(),
+  gardenRequired: z.boolean().optional(),
+  swimmingPool: z.boolean().optional(),
+  commercialShops: z.boolean().optional(),
+  flatMix: z.string().optional(),
+  liftCount: z.number().optional(),
+  staircaseCount: z.number().optional(),
+  landCost: z.number().optional(),
+  expectedSalesRate: z.number().optional(),
+  flatsPerFloor: z.number().optional()
 });
 
 
