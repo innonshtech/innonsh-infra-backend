@@ -1007,26 +1007,40 @@ export class AiService {
       fsi: number;
       budget: number;
       targetCustomer: string;
+      frontSetback?: number;
+      rearSetback?: number;
+      sideSetbacks?: number;
+      requestedFloors?: number;
+      version?: string;
+      parentPlanId?: string;
     }
   ) {
     const prompt = `
       You are an expert Chief Architect, Urban Planner, and Quantity Surveyor.
-      Generate a detailed property plan outline based on the following input parameters:
+      Generate a detailed property plan layout based on the following input parameters:
       - Project Name: ${data.projectName}
       - Plot Size: ${data.plotSize} sq. ft.
       - Front Road Width: ${data.roadWidth} meters
       - FSI (Floor Space Index): ${data.fsi}
       - Budget: INR ${data.budget}
       - Target Customer: ${data.targetCustomer}
+      - Setbacks: Front Setback: ${data.frontSetback ?? 6.0}m, Rear Setback: ${data.rearSetback ?? 3.0}m, Left/Right Side Setbacks: ${data.sideSetbacks ?? 3.0}m
+      - Requested Target Floors: ${data.requestedFloors ?? 1}
 
-      You must calculate the optimal saleable area, unit mix, parking layout, amenities, clubhouse, landscaping, and commercial space splitting.
+      You must calculate the optimal built-up area, ground coverage percentage, total unit count, parking spaces, FSI utilization, saleable area, unit mix, parking layout, amenities, clubhouse, landscaping, and commercial space splitting.
       
       Additionally, you must design a simplified 2D layout map coordinates array within a 200x200 grid system representing the plot layout.
-      The room coordinates should have integer values (0 to 200). The first item should define the boundary / plot outline (e.g. name: "Plot Boundary", x: 10, y: 10, w: 180, h: 180). Additional blocks should fit inside this boundary without overlapping.
+      The room coordinates should have integer values (0 to 200). The first item should define the boundary / plot outline (e.g. name: "Plot Boundary", x: 10, y: 10, w: 180, h: 180). Additional blocks (Building Blocks, Parking Ground, Garden, Clubhouse) should fit inside this boundary keeping the setback margins in mind.
 
       You must respond in strict JSON format matching this schema:
       {
         "saleableArea": <number representing calculated total saleable area in sq. ft.>,
+        "floors": <number representing calculated optimal total floors based on requested floors and rules>,
+        "totalUnits": <number representing total calculated flat/unit count>,
+        "parkingSpaces": <number representing total calculated parking slots count>,
+        "builtUpArea": <number representing total built-up area in sq. ft.>,
+        "fsiUsed": <number representing calculated FSI utilization multiplier, e.g. 2.15>,
+        "coverage": <number representing building ground footprint coverage percentage, e.g. 42.8>,
         "unitMix": "<detailed configuration breakdown text>",
         "parkingLayout": "<parking space slot count and guidelines text>",
         "amenities": "<amenities list text>",
@@ -1080,6 +1094,18 @@ export class AiService {
         fsi: data.fsi,
         budget: data.budget,
         targetCustomer: data.targetCustomer,
+        frontSetback: data.frontSetback ?? 6.0,
+        rearSetback: data.rearSetback ?? 3.0,
+        sideSetbacks: data.sideSetbacks ?? 3.0,
+        requestedFloors: data.requestedFloors ?? 1,
+        
+        floors: plan.floors ? Number(plan.floors) : (data.requestedFloors ?? 1),
+        totalUnits: plan.totalUnits ? Number(plan.totalUnits) : 0,
+        parkingSpaces: plan.parkingSpaces ? Number(plan.parkingSpaces) : 0,
+        builtUpArea: plan.builtUpArea ? Number(plan.builtUpArea) : 0,
+        fsiUsed: plan.fsiUsed ? Number(plan.fsiUsed) : 0,
+        coverage: plan.coverage ? Number(plan.coverage) : 0,
+        
         unitMix: plan.unitMix || 'N/A',
         parkingLayout: plan.parkingLayout || 'N/A',
         amenities: plan.amenities || 'N/A',
@@ -1090,7 +1116,11 @@ export class AiService {
         costEstimates: plan.costEstimates || 'N/A',
         saleableArea: plan.saleableArea ? Number(plan.saleableArea) : (data.plotSize * data.fsi),
         svgFloorPlan,
-        dxfContent
+        dxfContent,
+        
+        version: data.version || 'V1',
+        parentPlanId: data.parentPlanId || null,
+        status: 'DRAFT'
       }
     });
 

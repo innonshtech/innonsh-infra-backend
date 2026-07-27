@@ -56,7 +56,13 @@ const generatePropertyPlanSchema = z.object({
   roadWidth: z.number(),
   fsi: z.number(),
   budget: z.number(),
-  targetCustomer: z.string()
+  targetCustomer: z.string(),
+  frontSetback: z.number().optional(),
+  rearSetback: z.number().optional(),
+  sideSetbacks: z.number().optional(),
+  requestedFloors: z.number().optional(),
+  version: z.string().optional(),
+  parentPlanId: z.string().optional()
 });
 
 

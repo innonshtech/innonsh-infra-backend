@@ -1421,11 +1421,26 @@ model PropertyPlan {
   id               String   @id @default(uuid())
   companyId        String
   projectName      String
+  
+  // Detailed Inputs
   plotSize         Float
   roadWidth        Float
   fsi              Float
   budget           Float
   targetCustomer   String
+  frontSetback     Float?   @default(6.0)
+  rearSetback      Float?   @default(3.0)
+  sideSetbacks     Float?   @default(3.0)
+  requestedFloors  Int?     @default(1)
+
+  // AI-Derived Metrics
+  floors           Int?     @default(1)
+  totalUnits       Int?     @default(0)
+  parkingSpaces    Int?     @default(0)
+  builtUpArea      Float?   @default(0.0)
+  fsiUsed          Float?   @default(0.0)
+  coverage         Float?   @default(0.0)
+
   unitMix          String?
   parkingLayout    String?
   amenities        String?
@@ -1437,6 +1452,12 @@ model PropertyPlan {
   saleableArea     Float?
   svgFloorPlan     String?  @db.Text
   dxfContent       String?  @db.Text
+
+  // Versions
+  version          String   @default("V1")
+  parentPlanId     String?
+  status           String   @default("DRAFT")
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
