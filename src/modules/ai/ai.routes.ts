@@ -29,4 +29,6 @@ router.post('/approval-delay', controller.predictApprovalDelay);
 router.get('/property-plans', controller.getPropertyPlans);
 router.post('/property-planning', controller.generatePropertyPlan);
 
+router.get('/documents', controller.getDocumentCatalog);
+
 export default router;

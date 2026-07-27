@@ -263,4 +263,14 @@ export class AiController {
       next(error);
     }
   };
+
+  getDocumentCatalog = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user!.company_id;
+      const data = await this.service.getDocumentCatalog(companyId);
+      sendResponse(res, 200, 'Unified document catalog retrieved successfully', data);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

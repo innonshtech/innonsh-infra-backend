@@ -64,6 +64,8 @@ model Company {
   marketAnalyses     MarketAnalysis[]
   approvals          Approval[]
   propertyPlans      PropertyPlan[]
+  documentCatalogs   DocumentCatalog[]
+
 
 
   // Organization Module Additions
@@ -1440,4 +1442,19 @@ model PropertyPlan {
 
   company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
+
+model DocumentCatalog {
+  id           String   @id @default(uuid())
+  companyId    String
+  title        String
+  module       String   // e.g. "LAND", "JV", "FEASIBILITY", "APPROVAL"
+  referenceId  String   // e.g. ID of Land, JVProject, Feasibility, Approval
+  documentType String   // e.g. "PDF", "IMAGE", "TXT"
+  fileUrl      String
+  uploadedBy   String   // Name or user ID who uploaded it
+  uploadedAt   DateTime @default(now())
+
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
 

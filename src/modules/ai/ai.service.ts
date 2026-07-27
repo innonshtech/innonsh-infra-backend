@@ -344,6 +344,33 @@ export class AiService {
       }
     });
 
+    if (data.soilReport?.base64) {
+      const soilRec = await prisma.soilReport.create({
+        data: {
+          landId: land.id,
+          soilType: 'Clayey Loam',
+          bearingCapacity: 220,
+          reportDate: new Date(),
+          reportFile: `uploaded_soil_report_${Date.now()}.pdf`,
+          testedBy: 'Standard Geotech Services'
+        }
+      });
+      await this.indexDocument(companyId, "Soil Test Report", "LAND", land.id, "PDF", soilRec.reportFile || "");
+    }
+
+    if (data.titleDeed?.base64) {
+      const landDoc = await prisma.landDocument.create({
+        data: {
+          landId: land.id,
+          documentType: 'Title Deed',
+          documentName: 'Title Deed Extract',
+          fileUrl: `uploaded_title_deed_${Date.now()}.pdf`,
+          uploadedBy: 'system'
+        }
+      });
+      await this.indexDocument(companyId, "Title Deed Extract", "LAND", land.id, "PDF", landDoc.fileUrl);
+    }
+
     const aiScore = await prisma.landAIScore.create({
       data: {
         landId: land.id,
@@ -544,6 +571,8 @@ export class AiService {
       }
     });
 
+    const docUrl = data.termSheet?.base64 ? `uploaded_term_sheet_${Date.now()}.pdf` : null;
+
     await prisma.jVAgreement.create({
       data: {
         companyId,
@@ -551,9 +580,14 @@ export class AiService {
         agreementType: 'MOU',
         agreementNumber: `MOU-${Date.now()}`,
         effectiveDate: new Date(),
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        document: docUrl
       }
     });
+
+    if (docUrl) {
+      await this.indexDocument(companyId, "JV Term Sheet MOU", "JV", jvProject.id, "PDF", docUrl);
+    }
 
     const aiRec = await prisma.jVAIRecommendation.create({
       data: {
@@ -710,6 +744,17 @@ export class AiService {
       }
     });
 
+    if (data.bylawsDoc?.base64) {
+      await this.indexDocument(
+        companyId,
+        "Municipal Development Bylaws",
+        "FEASIBILITY",
+        feasibility.id,
+        "PDF",
+        `uploaded_bylaws_${Date.now()}.pdf`
+      );
+    }
+
     const aiReport = await prisma.feasibilityAI.create({
       data: {
         feasibilityId: feasibility.id,
@@ -837,6 +882,18 @@ export class AiService {
         status: data.status
       }
     });
+
+    if (data.objectionLetter?.base64) {
+      const objectionDoc = await prisma.approvalDocument.create({
+        data: {
+          approvalId: approval.id,
+          documentName: 'Objection Notice Slip',
+          documentType: 'Objection Slip',
+          file: `uploaded_objection_letter_${Date.now()}.pdf`,
+        }
+      });
+      await this.indexDocument(companyId, "Objection Notice Slip", "APPROVAL", approval.id, "PDF", objectionDoc.file);
+    }
 
     const aiReport = await prisma.approvalAI.create({
       data: {
@@ -1038,5 +1095,34 @@ export class AiService {
     });
 
     return record;
+  }
+
+  async getDocumentCatalog(companyId: string) {
+    return await prisma.documentCatalog.findMany({
+      where: { companyId },
+      orderBy: { uploadedAt: 'desc' }
+    });
+  }
+
+  async indexDocument(
+    companyId: string,
+    title: string,
+    module: string,
+    referenceId: string,
+    documentType: string,
+    fileUrl: string,
+    uploadedBy: string = 'system'
+  ) {
+    return await prisma.documentCatalog.create({
+      data: {
+        companyId,
+        title,
+        module,
+        referenceId,
+        documentType,
+        fileUrl,
+        uploadedBy
+      }
+    });
   }
 }
