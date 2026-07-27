@@ -1012,7 +1012,7 @@ export class AiService {
       sideSetbacks?: number;
       requestedFloors?: number;
       version?: string;
-      parentPlanId?: string;
+      parentPlanId?: string | null;
     }
   ) {
     const prompt = `

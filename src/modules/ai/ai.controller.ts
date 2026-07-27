@@ -62,7 +62,7 @@ const generatePropertyPlanSchema = z.object({
   sideSetbacks: z.number().optional(),
   requestedFloors: z.number().optional(),
   version: z.string().optional(),
-  parentPlanId: z.string().optional()
+  parentPlanId: z.string().nullable().optional()
 });
 
 
