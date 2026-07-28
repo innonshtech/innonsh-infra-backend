@@ -1445,6 +1445,7 @@ model PropertyPlan {
   landCost         Float?   @default(0.0)
   expectedSalesRate Float?  @default(0.0)
   flatsPerFloor    Int?     @default(2)
+  customInstructions String? @db.Text
 
   // AI-Derived Metrics
   floors           Int?     @default(1)

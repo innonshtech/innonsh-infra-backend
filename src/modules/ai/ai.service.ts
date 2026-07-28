@@ -1,6 +1,43 @@
 import { prisma } from '../../config/prisma.config';
 
 export class AiService {
+  private parseGeminiJson(text: string): any {
+    let cleanText = text.trim();
+    if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```(?:json)?\s*/i, '');
+      cleanText = cleanText.replace(/\s*```$/, '');
+    }
+    return JSON.parse(cleanText.trim());
+  }
+
+  private async resolveFileAttachment(
+    file?: { base64?: string; mimeType?: string; url?: string }
+  ): Promise<{ base64: string; mimeType: string } | null> {
+    if (!file) return null;
+    if (file.base64 && file.mimeType) {
+      const base64Clean = file.base64.replace(/^data:[^;]+;base64,/, '');
+      return { base64: base64Clean, mimeType: file.mimeType };
+    }
+    if (file.url) {
+      try {
+        const response = await fetch(file.url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file from url: ${file.url}`);
+        }
+        const buffer = Buffer.from(await response.arrayBuffer());
+        const mimeType = response.headers.get('content-type') || file.mimeType || 'application/pdf';
+        return {
+          base64: buffer.toString('base64'),
+          mimeType
+        };
+      } catch (err) {
+        console.error(`Error resolving file attachment from URL ${file.url}:`, err);
+        throw err;
+      }
+    }
+    return null;
+  }
+
   async getSessions(userId: string, companyId: string) {
     return (prisma as any).aiBoard.findMany({
       where: { userId, companyId },
@@ -262,13 +299,27 @@ export class AiService {
       roadWidth: number;
       askingPrice: number;
       zoning: string;
-      soilReport?: { base64: string; mimeType: string };
-      titleDeed?: { base64: string; mimeType: string };
+      soilReport?: { base64?: string; mimeType?: string; url?: string };
+      titleDeed?: { base64?: string; mimeType?: string; url?: string };
+      titleDeeds?: { base64?: string; mimeType?: string; url?: string; name?: string }[];
+      additionalNotes?: string;
     }
   ) {
     const files: any[] = [];
-    if (data.soilReport?.base64) files.push(data.soilReport);
-    if (data.titleDeed?.base64) files.push(data.titleDeed);
+    if (data.soilReport) {
+      const resolved = await this.resolveFileAttachment(data.soilReport);
+      if (resolved) files.push(resolved);
+    }
+    if (data.titleDeed) {
+      const resolved = await this.resolveFileAttachment(data.titleDeed);
+      if (resolved) files.push(resolved);
+    }
+    if (data.titleDeeds && data.titleDeeds.length > 0) {
+      for (const td of data.titleDeeds) {
+        const resolved = await this.resolveFileAttachment(td);
+        if (resolved) files.push(resolved);
+      }
+    }
 
     const prompt = `
       Analyze the following land plot and any attached documents (such as soil reports or title deeds) to estimate its potential and risks.
@@ -280,6 +331,8 @@ export class AiService {
       - Road Width in front: ${data.roadWidth} ft.
       - Asking Price: INR ${data.askingPrice}
       - Zoning: ${data.zoning}
+      
+      ${data.additionalNotes ? `- Additional Context/User Instructions:\n"${data.additionalNotes}"` : ''}
       
       If a soil report is attached, analyze it to determine soil load bearing capacity and foundation complexity.
       If a title deed/encumbrance certificate is attached, scan it for legal disputes, mortgages, or active warning flags.
@@ -302,7 +355,7 @@ export class AiService {
 
     let analysis: any;
     try {
-      analysis = JSON.parse(aiResponseText.trim());
+      analysis = this.parseGeminiJson(aiResponseText);
     } catch (e) {
       console.error('Failed to parse Gemini response as JSON. Raw text was:', aiResponseText);
       throw new Error('Gemini did not return a valid JSON response. Details: ' + aiResponseText);
@@ -339,7 +392,7 @@ export class AiService {
         zoning: data.zoning,
         currentStatus: 'AVAILABLE',
         askingPrice: data.askingPrice,
-        remarks: JSON.stringify({ roadWidth: data.roadWidth }),
+        remarks: JSON.stringify({ roadWidth: data.roadWidth, additionalNotes: data.additionalNotes }),
         createdBy: 'system'
       }
     });
@@ -358,7 +411,24 @@ export class AiService {
       await this.indexDocument(companyId, "Soil Test Report", "LAND", land.id, "PDF", soilRec.reportFile || "");
     }
 
-    if (data.titleDeed?.base64) {
+    if (data.titleDeeds && data.titleDeeds.length > 0) {
+      for (let i = 0; i < data.titleDeeds.length; i++) {
+        const td = data.titleDeeds[i];
+        if (td.base64) {
+          const fileName = td.name || `uploaded_title_deed_${Date.now()}_${i + 1}.pdf`;
+          const landDoc = await prisma.landDocument.create({
+            data: {
+              landId: land.id,
+              documentType: 'Title Deed',
+              documentName: fileName,
+              fileUrl: fileName,
+              uploadedBy: 'system'
+            }
+          });
+          await this.indexDocument(companyId, fileName, "LAND", land.id, "PDF", landDoc.fileUrl);
+        }
+      }
+    } else if (data.titleDeed?.base64) {
       const landDoc = await prisma.landDocument.create({
         data: {
           landId: land.id,
@@ -485,11 +555,14 @@ export class AiService {
       landOwnerTerms: string;
       builderTerms: string;
       investorTerms: string;
-      termSheet?: { base64: string; mimeType: string };
+      termSheet?: { base64?: string; mimeType?: string; url?: string };
     }
   ) {
     const files: any[] = [];
-    if (data.termSheet?.base64) files.push(data.termSheet);
+    if (data.termSheet) {
+      const resolved = await this.resolveFileAttachment(data.termSheet);
+      if (resolved) files.push(resolved);
+    }
 
     const prompt = `
       Analyze the proposed Joint Venture (JV) terms between the Land Owner, Builder, and Investors.
@@ -522,7 +595,7 @@ export class AiService {
 
     let analysis: any;
     try {
-      analysis = JSON.parse(aiResponseText.trim());
+      analysis = this.parseGeminiJson(aiResponseText);
     } catch (e) {
       console.error('Failed to parse Gemini response as JSON. Raw text was:', aiResponseText);
       throw new Error('Gemini did not return a valid JSON response. Details: ' + aiResponseText);
@@ -665,11 +738,14 @@ export class AiService {
       fsi: number;
       sellingPrice: number;
       materialCost: number;
-      bylawsDoc?: { base64: string; mimeType: string };
+      bylawsDoc?: { base64?: string; mimeType?: string; url?: string };
     }
   ) {
     const files: any[] = [];
-    if (data.bylawsDoc?.base64) files.push(data.bylawsDoc);
+    if (data.bylawsDoc) {
+      const resolved = await this.resolveFileAttachment(data.bylawsDoc);
+      if (resolved) files.push(resolved);
+    }
 
     const prompt = `
       Perform a comprehensive project feasibility study for the proposed project using the parameters below:
@@ -701,7 +777,7 @@ export class AiService {
 
     let analysis: any;
     try {
-      analysis = JSON.parse(aiResponseText.trim());
+      analysis = this.parseGeminiJson(aiResponseText);
     } catch (e) {
       console.error('Failed to parse Gemini response as JSON. Raw text was:', aiResponseText);
       throw new Error('Gemini did not return a valid JSON response. Details: ' + aiResponseText);
@@ -820,11 +896,14 @@ export class AiService {
       authorityName: string;
       status: string;
       submissionDate: string;
-      objectionLetter?: { base64: string; mimeType: string };
+      objectionLetter?: { base64?: string; mimeType?: string; url?: string };
     }
   ) {
     const files: any[] = [];
-    if (data.objectionLetter?.base64) files.push(data.objectionLetter);
+    if (data.objectionLetter) {
+      const resolved = await this.resolveFileAttachment(data.objectionLetter);
+      if (resolved) files.push(resolved);
+    }
 
     const prompt = `
       Evaluate the regulatory approval task to predict delays and identify document compliance issues.
@@ -853,7 +932,7 @@ export class AiService {
 
     let analysis: any;
     try {
-      analysis = JSON.parse(aiResponseText.trim());
+      analysis = this.parseGeminiJson(aiResponseText);
     } catch (e) {
       console.error('Failed to parse Gemini response as JSON. Raw text was:', aiResponseText);
       throw new Error('Gemini did not return a valid JSON response. Details: ' + aiResponseText);
@@ -1024,6 +1103,7 @@ export class AiService {
       landCost?: number;
       expectedSalesRate?: number;
       flatsPerFloor?: number;
+      customInstructions?: string;
     }
   ) {
     const prompt = `
@@ -1048,6 +1128,7 @@ export class AiService {
       - Land Purchase Cost: ${data.landCost ? `INR ${data.landCost}` : 'Not Provided by builder (Do NOT invent or guess land cost)'}
       - Expected Sales Rate (per Sq. Ft. Saleable Area): ${data.expectedSalesRate ? `INR ${data.expectedSalesRate}` : 'Not Provided by builder (Do NOT invent or guess revenue)'}
       - Typical Flats Per Floor: ${data.flatsPerFloor ?? 2} flats per typical floor
+      ${data.customInstructions ? `- Builder Custom Instructions/Guidelines: "${data.customInstructions}"` : ''}
 
       You must calculate:
       1. Optimal recommended floors based on the bylaws and requested floors (explain the setback or FSI math limit in decisionReason).
@@ -1061,6 +1142,7 @@ export class AiService {
       The room coordinates should have integer values (0 to 200). The first item should define the boundary / plot outline (e.g. name: "Plot Boundary", x: 10, y: 10, w: 180, h: 180). Additional blocks (Building Blocks, Parking Ground, Garden, Clubhouse) should fit inside this boundary keeping the setback margins in mind.
 
       CRITICAL BUSINESS LOGIC CONSTRAINTS (YOU MUST COMPLY):
+      *   **Builder Guidelines Integration:** If "Builder Custom Instructions/Guidelines" is provided above, you MUST prioritize and incorporate them into your calculations, room configurations, pricing assumptions, and layout suggestions.
       *   **Symmetrical Flats Count:** The "totalUnits" MUST be equal to "floors" multiplied by the "flatsPerFloor" input parameter (so they split symmetrically per floor). If floors is 6 and flatsPerFloor is 3, totalUnits MUST be 18.
       *   **No Land Cost Invention:** If Land Purchase Cost was not provided, "landCost" must be 0.
       *   **No Revenue Invention:** If Expected Sales Rate was not provided, "estimatedRevenue", "expectedProfit", and "roi" must be 0. Do NOT guess sales prices or profit margins.
@@ -1122,7 +1204,7 @@ export class AiService {
 
     let plan: any;
     try {
-      plan = JSON.parse(aiResponseText.trim());
+      plan = this.parseGeminiJson(aiResponseText);
     } catch (e) {
       console.error('Failed to parse Gemini response as JSON. Raw text was:', aiResponseText);
       throw new Error('Gemini did not return a valid JSON response. Details: ' + aiResponseText);
@@ -1163,6 +1245,7 @@ export class AiService {
         landCost: data.landCost ?? 0,
         expectedSalesRate: data.expectedSalesRate ?? 0,
         flatsPerFloor: data.flatsPerFloor ?? 2,
+        customInstructions: data.customInstructions ?? null,
 
         floors: plan.floors ? Number(plan.floors) : (data.requestedFloors ?? 1),
         totalUnits: plan.totalUnits ? Number(plan.totalUnits) : 0,

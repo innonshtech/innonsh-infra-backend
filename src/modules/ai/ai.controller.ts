@@ -5,9 +5,17 @@ import { AppError } from '../../middleware/error.middleware';
 import { z } from 'zod';
 
 const fileAttachmentSchema = z.object({
-  base64: z.string(),
-  mimeType: z.string()
+  base64: z.string().optional(),
+  mimeType: z.string().optional(),
+  url: z.string().optional()
 }).optional();
+
+const bulkFileAttachmentSchema = z.object({
+  base64: z.string().optional(),
+  mimeType: z.string().optional(),
+  name: z.string().optional(),
+  url: z.string().optional()
+});
 
 const analyzeLandPlotSchema = z.object({
   name: z.string(),
@@ -17,7 +25,9 @@ const analyzeLandPlotSchema = z.object({
   askingPrice: z.number(),
   zoning: z.string(),
   soilReport: fileAttachmentSchema,
-  titleDeed: fileAttachmentSchema
+  titleDeed: fileAttachmentSchema,
+  titleDeeds: z.array(bulkFileAttachmentSchema).optional(),
+  additionalNotes: z.string().optional()
 });
 
 const analyzeJVAgreementSchema = z.object({
@@ -73,7 +83,8 @@ const generatePropertyPlanSchema = z.object({
   staircaseCount: z.number().optional(),
   landCost: z.number().optional(),
   expectedSalesRate: z.number().optional(),
-  flatsPerFloor: z.number().optional()
+  flatsPerFloor: z.number().optional(),
+  customInstructions: z.string().optional()
 });
 
 
