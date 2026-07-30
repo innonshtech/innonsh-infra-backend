@@ -17,31 +17,46 @@ const bulkFileAttachmentSchema = z.object({
   url: z.string().optional()
 });
 
-const analyzeLandPlotSchema = z.object({
+const ownerDetailSchema = z.object({
   name: z.string(),
-  address: z.string(),
-  area: z.number(),
-  roadWidth: z.number(),
-  askingPrice: z.number(),
-  zoning: z.string(),
+  share: z.number(),
+  mobile: z.string()
+});
+
+const analyzeLandPlotSchema = z.object({
+  name: z.string().optional(),
+  projectName: z.string().optional(),
+  projectId: z.string().optional(),
+  address: z.string().optional(),
+  village: z.string().optional(),
+  surveyNumber: z.string().optional(),
+  googleMapLink: z.string().optional(),
+  area: z.number().optional(),
+  unit: z.string().optional(),
+  roadWidth: z.number().optional(),
+  askingPrice: z.number().optional(),
+  zoning: z.string().optional(),
   soilReport: fileAttachmentSchema,
   titleDeed: fileAttachmentSchema,
   titleDeeds: z.array(bulkFileAttachmentSchema).optional(),
-  additionalNotes: z.string().optional()
+  additionalNotes: z.string().optional(),
+  owners: z.array(ownerDetailSchema).optional(),
+  chatPrompt: z.string().optional()
 });
 
 const analyzeJVAgreementSchema = z.object({
-  projectName: z.string(),
-  landOwnerName: z.string(),
-  builderName: z.string(),
-  investorName: z.string(),
-  landValue: z.number(),
-  constructionCost: z.number(),
-  investorFunds: z.number(),
-  landOwnerTerms: z.string(),
-  builderTerms: z.string(),
-  investorTerms: z.string(),
-  termSheet: fileAttachmentSchema
+  projectName: z.string().optional(),
+  landOwnerName: z.string().optional(),
+  builderName: z.string().optional(),
+  investorName: z.string().optional(),
+  landValue: z.number().optional(),
+  constructionCost: z.number().optional(),
+  investorFunds: z.number().optional(),
+  landOwnerTerms: z.string().optional(),
+  builderTerms: z.string().optional(),
+  investorTerms: z.string().optional(),
+  termSheet: fileAttachmentSchema,
+  chatPrompt: z.string().optional()
 });
 
 const calculateFeasibilitySchema = z.object({
@@ -50,14 +65,16 @@ const calculateFeasibilitySchema = z.object({
   fsi: z.number(),
   sellingPrice: z.number(),
   materialCost: z.number(),
-  bylawsDoc: fileAttachmentSchema
+  bylawsDoc: fileAttachmentSchema,
+  metadata: z.any().optional()
 });
 
 const predictApprovalDelaySchema = z.object({
   authorityName: z.string(),
   status: z.string(),
   submissionDate: z.string(),
-  objectionLetter: fileAttachmentSchema
+  objectionLetter: fileAttachmentSchema,
+  metadata: z.any().optional()
 });
 
 const generatePropertyPlanSchema = z.object({
@@ -85,6 +102,37 @@ const generatePropertyPlanSchema = z.object({
   expectedSalesRate: z.number().optional(),
   flatsPerFloor: z.number().optional(),
   customInstructions: z.string().optional()
+});
+
+const updateJVAgreementLifecycleSchema = z.object({
+  milestones: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      plannedDate: z.string().nullable().optional(),
+      actualDate: z.string().nullable().optional(),
+      status: z.string(),
+      responsibleParty: z.string()
+    })
+  ).optional(),
+  paymentSchedule: z.array(
+    z.object({
+      id: z.string(),
+      installment: z.number(),
+      amount: z.number(),
+      dueDate: z.string().nullable().optional(),
+      paidDate: z.string().nullable().optional(),
+      status: z.string()
+    })
+  ).optional(),
+  legalChecklist: z.record(z.string(), z.boolean()).optional(),
+  basicDetails: z.record(z.string(), z.any()).optional(),
+  financialDetails: z.record(z.string(), z.any()).optional(),
+  revenueSharingDetails: z.record(z.string(), z.any()).optional(),
+  agreementDetails: z.record(z.string(), z.any()).optional(),
+  landOwnerDetails: z.record(z.string(), z.any()).optional(),
+  builderDetails: z.record(z.string(), z.any()).optional(),
+  investorDetails: z.record(z.string(), z.any()).optional()
 });
 
 
@@ -292,11 +340,35 @@ export class AiController {
     }
   };
 
+  updateJVAgreementLifecycle = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user!.company_id;
+      const { id } = req.params;
+      const validated = updateJVAgreementLifecycleSchema.parse(req.body);
+      const result = await this.service.updateJVAgreementLifecycle(companyId, id as string, validated);
+      sendResponse(res, 200, 'JV lifecycle status updated successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getDocumentCatalog = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const companyId = req.user!.company_id;
       const data = await this.service.getDocumentCatalog(companyId);
       sendResponse(res, 200, 'Unified document catalog retrieved successfully', data);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateLandPlot = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user!.company_id;
+      const { id } = req.params;
+      const validated = analyzeLandPlotSchema.parse(req.body);
+      const result = await this.service.updateLandPlot(companyId, id as string, validated);
+      sendResponse(res, 200, 'Land plot updated and re-analyzed successfully', result);
     } catch (error) {
       next(error);
     }

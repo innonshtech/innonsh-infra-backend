@@ -16,9 +16,11 @@ router.delete('/sessions/:id', controller.deleteSession);
 // New AI ERP Modules
 router.get('/land-plots', controller.getLandPlots);
 router.post('/land-analysis', controller.analyzeLandPlot);
+router.put('/land-plots/:id', controller.updateLandPlot);
 
 router.get('/jv-agreements', controller.getJVAgreements);
 router.post('/jv-analysis', controller.analyzeJVAgreement);
+router.put('/jv-agreements/:id/lifecycle', controller.updateJVAgreementLifecycle);
 
 router.get('/feasibility-studies', controller.getFeasibilityStudies);
 router.post('/feasibility', controller.calculateFeasibility);
