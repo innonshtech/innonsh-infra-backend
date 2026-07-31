@@ -7,7 +7,68 @@ export class AiService {
       cleanText = cleanText.replace(/^```(?:json)?\s*/i, '');
       cleanText = cleanText.replace(/\s*```$/, '');
     }
-    return JSON.parse(cleanText.trim());
+    cleanText = cleanText.trim();
+
+    const balanceBrackets = (str: string) => {
+      let openBraces = 0;
+      let openBrackets = 0;
+      let inString = false;
+      let escape = false;
+
+      for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        if (escape) {
+          escape = false;
+          continue;
+        }
+        if (char === '\\') {
+          escape = true;
+          continue;
+        }
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+        if (!inString) {
+          if (char === '{') openBraces++;
+          else if (char === '}') openBraces--;
+          else if (char === '[') openBrackets++;
+          else if (char === ']') openBrackets--;
+        }
+      }
+
+      let balanced = str;
+      while (openBrackets > 0) {
+        balanced += ']';
+        openBrackets--;
+      }
+      while (openBraces > 0) {
+        balanced += '}';
+        openBraces--;
+      }
+      return balanced;
+    };
+
+    try {
+      return JSON.parse(cleanText);
+    } catch (e) {
+      try {
+        const balancedText = balanceBrackets(cleanText);
+        return JSON.parse(balancedText);
+      } catch (innerErr) {
+        const jsonStart = cleanText.indexOf('{');
+        const jsonEnd = cleanText.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          const extractedJson = cleanText.substring(jsonStart, jsonEnd + 1);
+          try {
+            return JSON.parse(extractedJson);
+          } catch (lastErr) {
+            // Let the original error throw
+          }
+        }
+        throw e;
+      }
+    }
   }
 
   private async resolveFileAttachment(
@@ -105,7 +166,7 @@ export class AiService {
       throw new Error('GEMINI_API_KEY is not configured in the backend environment. Please set GEMINI_API_KEY in your .env file.');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
     const systemInstruction = {
       parts: [
@@ -168,7 +229,7 @@ export class AiService {
       throw new Error('GEMINI_API_KEY is not configured in the backend environment. Please set GEMINI_API_KEY in your .env file.');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
     const parts: any[] = [{ text: prompt }];
 
@@ -1793,33 +1854,14 @@ export class AiService {
         approvalCategory: parsedRec.approvalCategory || 'Construction',
         mandatoryOptional: parsedRec.mandatoryOptional || 'Mandatory',
         projectRef: parsedRec.projectRef || { projectId: '', projectName: 'N/A', jvId: '', jvName: 'N/A', landId: '', landNumber: 'N/A' },
-        readinessScore: parsedRec.readinessScore || 91,
-        readinessStatus: parsedRec.readinessStatus || 'Ready for Submission',
-        missingDocMetrics: parsedRec.missingDocMetrics || { required: 18, uploaded: 16, missing: 2, pendingList: ["Fire Drawing", "Structural Stability Certificate"] },
-        objectionQueries: parsedRec.objectionQueries || [
-          { queryNum: 1, text: "Parking calculation mismatch", priority: "HIGH", suggestedAction: "Revise parking drawing" },
-          { queryNum: 2, text: "Missing Fire NOC", priority: "MEDIUM", suggestedAction: "Obtain Fire NOC" }
-        ],
-        progressSteps: parsedRec.progressSteps || [
-          { stepName: "Submitted", status: "COMPLETED", date: "12 July" },
-          { stepName: "Document Verification", status: "COMPLETED", date: "15 July" },
-          { stepName: "Technical Review", status: "COMPLETED", date: "18 July" },
-          { stepName: "Query Raised", status: "COMPLETED", date: "20 July" },
-          { stepName: "Resubmitted", status: "PENDING", date: null },
-          { stepName: "Approved", status: "PENDING", date: null }
-        ],
-        resubmissionHistory: parsedRec.resubmissionHistory || [
-          { submissionNum: 1, date: "12 July", status: "Rejected" },
-          { submissionNum: 2, date: "20 July", status: "Query Raised" },
-          { submissionNum: 3, date: "Pending", status: "Pending" }
-        ],
-        slaTimeline: parsedRec.slaTimeline || { submissionDate: a.submittedDate, slaDays: 30, expectedDays: 28 },
-        aiSuggestions: parsedRec.aiSuggestions || [
-          "Upload Fire Drawing",
-          "Correct Parking Layout",
-          "Verify Structural Certificate",
-          "Re-submit within 5 days"
-        ],
+        readinessScore: parsedRec.readinessScore || 100,
+        readinessStatus: parsedRec.readinessStatus || 'N/A',
+        missingDocMetrics: parsedRec.missingDocMetrics || { required: 0, uploaded: 0, missing: 0, pendingList: [] },
+        objectionQueries: parsedRec.objectionQueries || [],
+        progressSteps: parsedRec.progressSteps || [],
+        resubmissionHistory: parsedRec.resubmissionHistory || [],
+        slaTimeline: parsedRec.slaTimeline || { submissionDate: a.submittedDate, slaDays: 30, expectedDays: 30 },
+        aiSuggestions: parsedRec.aiSuggestions || [],
         createdAt: a.createdAt,
         updatedAt: a.updatedAt
       };
