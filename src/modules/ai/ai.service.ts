@@ -645,48 +645,53 @@ export class AiService {
       }
     }
 
-    if (data.soilReport?.base64) {
+    const soilUrl = data.soilReport?.url || data.soilReport?.base64 || '';
+    if (soilUrl) {
       const soilRec = await prisma.soilReport.create({
         data: {
           landId: land.id,
           soilType: 'Clayey Loam',
           bearingCapacity: 220,
           reportDate: new Date(),
-          reportFile: `uploaded_soil_report_${Date.now()}.pdf`,
+          reportFile: soilUrl,
           testedBy: 'Standard Geotech Services'
         }
       });
-      await this.indexDocument(companyId, "Soil Test Report", "LAND", land.id, "PDF", soilRec.reportFile || "");
+      await this.indexDocument(companyId, "Soil Test Report", "LAND", land.id, "PDF", soilUrl);
     }
 
     if (data.titleDeeds && data.titleDeeds.length > 0) {
       for (let i = 0; i < data.titleDeeds.length; i++) {
         const td = data.titleDeeds[i];
-        if (td.base64) {
+        const tdUrl = td.url || td.base64 || '';
+        if (tdUrl) {
           const fileName = td.name || `uploaded_title_deed_${Date.now()}_${i + 1}.pdf`;
           const landDoc = await prisma.landDocument.create({
             data: {
               landId: land.id,
               documentType: 'Title Deed',
               documentName: fileName,
-              fileUrl: fileName,
+              fileUrl: tdUrl,
               uploadedBy: 'system'
             }
           });
-          await this.indexDocument(companyId, fileName, "LAND", land.id, "PDF", landDoc.fileUrl);
+          await this.indexDocument(companyId, fileName, "LAND", land.id, "PDF", tdUrl);
         }
       }
-    } else if (data.titleDeed?.base64) {
-      const landDoc = await prisma.landDocument.create({
-        data: {
-          landId: land.id,
-          documentType: 'Title Deed',
-          documentName: 'Title Deed Extract',
-          fileUrl: `uploaded_title_deed_${Date.now()}.pdf`,
-          uploadedBy: 'system'
-        }
-      });
-      await this.indexDocument(companyId, "Title Deed Extract", "LAND", land.id, "PDF", landDoc.fileUrl);
+    } else {
+      const singleTdUrl = data.titleDeed?.url || data.titleDeed?.base64 || '';
+      if (singleTdUrl) {
+        const landDoc = await prisma.landDocument.create({
+          data: {
+            landId: land.id,
+            documentType: 'Title Deed',
+            documentName: 'Title Deed Extract',
+            fileUrl: singleTdUrl,
+            uploadedBy: 'system'
+          }
+        });
+        await this.indexDocument(companyId, "Title Deed Extract", "LAND", land.id, "PDF", singleTdUrl);
+      }
     }
 
     const aiScore = await prisma.landAIScore.create({
@@ -1740,14 +1745,15 @@ export class AiService {
       }
     });
 
-    if (data.bylawsDoc?.base64) {
+    const bylawsUrl = data.bylawsDoc?.url || data.bylawsDoc?.base64 || '';
+    if (bylawsUrl) {
       await this.indexDocument(
         companyId,
         "Municipal Development Bylaws",
         "FEASIBILITY",
         feasibility.id,
         "PDF",
-        `uploaded_bylaws_${Date.now()}.pdf`
+        bylawsUrl
       );
     }
 
@@ -2002,16 +2008,21 @@ export class AiService {
       }
     });
 
-    if (data.objectionLetter?.base64) {
+    const objectionUrl = data.objectionLetter?.url || data.objectionLetter?.base64 || '';
+    if (objectionUrl) {
       const objectionDoc = await prisma.approvalDocument.create({
         data: {
           approvalId: approval.id,
           documentName: 'Objection Notice Slip',
           documentType: 'Objection Slip',
-          file: `uploaded_objection_letter_${Date.now()}.pdf`,
+          file: objectionUrl,
         }
       });
-      await this.indexDocument(companyId, "Objection Notice Slip", "APPROVAL", approval.id, "PDF", objectionDoc.file);
+      await this.indexDocument(companyId, "Objection Notice Slip", "APPROVAL", approval.id, "PDF", objectionUrl);
+    }
+
+    if (meta.receiptUrl) {
+      await this.indexDocument(companyId, "Payment Receipt / Challan", "APPROVAL", approval.id, "Receipt", meta.receiptUrl);
     }
 
     const aiReport = await prisma.approvalAI.create({
@@ -2426,6 +2437,15 @@ export class AiService {
         documentType,
         fileUrl,
         uploadedBy
+      }
+    });
+  }
+
+  async deleteDocument(companyId: string, id: string) {
+    return await prisma.documentCatalog.delete({
+      where: {
+        id,
+        companyId
       }
     });
   }

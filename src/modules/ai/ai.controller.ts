@@ -362,6 +362,17 @@ export class AiController {
     }
   };
 
+  deleteDocument = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user!.company_id;
+      const { id } = req.params;
+      const result = await this.service.deleteDocument(companyId, id as string);
+      sendResponse(res, 200, 'Document deleted from catalog successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   updateLandPlot = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const companyId = req.user!.company_id;

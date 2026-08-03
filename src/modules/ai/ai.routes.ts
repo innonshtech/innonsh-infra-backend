@@ -32,5 +32,6 @@ router.get('/property-plans', controller.getPropertyPlans);
 router.post('/property-planning', controller.generatePropertyPlan);
 
 router.get('/documents', controller.getDocumentCatalog);
+router.delete('/documents/:id', controller.deleteDocument);
 
 export default router;
