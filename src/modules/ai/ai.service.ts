@@ -1389,6 +1389,36 @@ export class AiService {
         "aiRecommendedModel": "<recommendation of the best JV model, e.g. Revenue Share, Profit Share, Area Share, and why>",
         "aiRoiPrediction": "<detailed ROI predictions for landowner, builder, and investor>",
         "aiRiskAnalysis": "<detailed risk breakdown and mitigations for this JV arrangement>",
+        "aiComparison": [
+          {
+            "model": "Revenue Sharing",
+            "risk": "Low" | "Medium" | "High",
+            "capitalRequirement": "Low" | "Medium" | "High",
+            "expectedRoi": "<percentage, e.g. 28%>",
+            "reason": "<short justification sentence>"
+          },
+          {
+            "model": "Area Sharing",
+            "risk": "Low" | "Medium" | "High",
+            "capitalRequirement": "Low" | "Medium" | "High",
+            "expectedRoi": "<percentage, e.g. 25%>",
+            "reason": "<short justification sentence>"
+          },
+          {
+            "model": "Profit Sharing",
+            "risk": "Low" | "Medium" | "High",
+            "capitalRequirement": "Low" | "Medium" | "High",
+            "expectedRoi": "<percentage, e.g. 31%>",
+            "reason": "<short justification sentence>"
+          },
+          {
+            "model": "Hybrid",
+            "risk": "Low" | "Medium" | "High",
+            "capitalRequirement": "Low" | "Medium" | "High",
+            "expectedRoi": "<percentage, e.g. 29%>",
+            "reason": "<short justification sentence>"
+          }
+        ],
         "profitSharingDetails": {
           "builderShare": <number representing builder share percentage, e.g. 60>,
           "landOwnerShare": <number representing landowner share percentage, e.g. 40>,
@@ -1500,6 +1530,7 @@ export class AiService {
     // Initialize full lifecycle metadata with client overrides
     const clientMeta = data.metadata || {};
     const metadata = {
+      aiComparison: [] as any[],
       basicDetails: {
         jvId: `JV-${Date.now().toString().substring(8)}`,
         jvName: clientMeta.basicDetails?.jvName || `${projectName} Joint Venture`,
@@ -1640,6 +1671,9 @@ export class AiService {
       ]
     };
 
+    // Save comparison analysis inside metadata
+    metadata.aiComparison = analysis.aiComparison || [];
+
     const aiRec = await prisma.jVAIRecommendation.create({
       data: {
         projectId: jvProject.id,
@@ -1666,6 +1700,7 @@ export class AiService {
       aiRecommendedModel: aiRec.bestModel,
       aiRoiPrediction: analysis.aiRoiPrediction || null,
       aiRiskAnalysis: analysis.aiRiskAnalysis || null,
+      aiComparison: analysis.aiComparison || null,
       metadata,
       createdAt: jvProject.createdAt,
       updatedAt: jvProject.updatedAt
