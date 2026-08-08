@@ -44,6 +44,17 @@ const analyzeLandPlotSchema = z.object({
   chatPrompt: z.string().optional()
 });
 
+const auditDocumentItemSchema = z.object({
+  name: z.string(),
+  url: z.string(),
+  type: z.string()
+});
+
+const auditLandDocumentsSchema = z.object({
+  landId: z.string().optional(),
+  documents: z.array(auditDocumentItemSchema)
+});
+
 const analyzeJVAgreementSchema = z.object({
   projectName: z.string().optional(),
   landOwnerName: z.string().optional(),
@@ -256,6 +267,17 @@ export class AiController {
     }
   };
 
+  auditLandDocuments = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user!.company_id;
+      const validated = auditLandDocumentsSchema.parse(req.body);
+      const result = await this.service.auditLandDocuments(companyId, validated);
+      sendResponse(res, 201, 'Land documents audited successfully', result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getJVAgreements = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const companyId = req.user!.company_id;
@@ -357,6 +379,28 @@ export class AiController {
       const companyId = req.user!.company_id;
       const data = await this.service.getDocumentCatalog(companyId);
       sendResponse(res, 200, 'Unified document catalog retrieved successfully', data);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  saveDocumentToVault = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user!.company_id;
+      const { title, module, referenceId, documentType, fileUrl, uploadedBy } = req.body;
+      if (!title || !fileUrl) {
+        throw new AppError('title and fileUrl are required', 400);
+      }
+      const result = await this.service.indexDocument(
+        companyId,
+        title,
+        module || 'LAND',
+        referenceId || 'manual',
+        documentType || 'PDF',
+        fileUrl,
+        uploadedBy || 'user'
+      );
+      sendResponse(res, 201, 'Document saved to vault successfully', result);
     } catch (error) {
       next(error);
     }

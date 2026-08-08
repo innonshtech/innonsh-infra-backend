@@ -16,6 +16,7 @@ router.delete('/sessions/:id', controller.deleteSession);
 // New AI ERP Modules
 router.get('/land-plots', controller.getLandPlots);
 router.post('/land-analysis', controller.analyzeLandPlot);
+router.post('/land-audit', controller.auditLandDocuments);
 router.put('/land-plots/:id', controller.updateLandPlot);
 
 router.get('/jv-agreements', controller.getJVAgreements);
@@ -32,6 +33,7 @@ router.get('/property-plans', controller.getPropertyPlans);
 router.post('/property-planning', controller.generatePropertyPlan);
 
 router.get('/documents', controller.getDocumentCatalog);
+router.post('/documents', controller.saveDocumentToVault);
 router.delete('/documents/:id', controller.deleteDocument);
 
 export default router;

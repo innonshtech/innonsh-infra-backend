@@ -296,7 +296,7 @@ export class AiService {
       include: {
         aiScores: {
           orderBy: { createdAt: 'desc' },
-          take: 1
+          take: 10
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -328,13 +328,18 @@ export class AiService {
         // Fallback if not JSON
       }
 
-      const latestAi = l.aiScores[0];
+      // Parse latest commercial score
+      const commercialScore = l.aiScores.find(score => score.summary && !score.summary.trim().startsWith('{'));
+      // Parse latest legal document audit report
+      const legalAuditScore = l.aiScores.find(score => score.summary && score.summary.trim().startsWith('{'));
+
       let aiAppreciation = '';
       let aiRiskAnalysis = '';
       let documentsLegality: any[] = [];
+      let auditReport: any = null;
 
-      if (latestAi?.summary) {
-        const parts = latestAi.summary.split('\n\nRisks: ');
+      if (commercialScore?.summary) {
+        const parts = commercialScore.summary.split('\n\nRisks: ');
         aiAppreciation = parts[0]?.replace('Appreciation: ', '') || '';
         if (parts[1]) {
           const riskParts = parts[1].split('\n\nLegality: ');
@@ -344,6 +349,15 @@ export class AiService {
               documentsLegality = JSON.parse(riskParts[1]);
             } catch (e) {}
           }
+        }
+      }
+
+      if (legalAuditScore?.summary) {
+        try {
+          const parsed = JSON.parse(legalAuditScore.summary);
+          auditReport = parsed.auditReport || parsed;
+        } catch (e) {
+          console.error("Failed to parse stored legal audit report JSON:", e);
         }
       }
 
@@ -385,10 +399,11 @@ export class AiService {
         zoning: l.zoning,
         soilReportUrl: null,
         titleDeedUrl: null,
-        aiScore: latestAi?.overallScore || null,
-        aiSuggestedPrice: latestAi?.recommendedPrice || null,
+        aiScore: commercialScore?.overallScore || null,
+        aiSuggestedPrice: commercialScore?.recommendedPrice || null,
         aiAppreciation: aiAppreciation || null,
         aiRiskAnalysis: aiRiskAnalysis || null,
+        auditReport: auditReport || null, // Returned legal report
         hasSoilReport,
         hasTitleDeeds,
         projectName,
@@ -440,6 +455,40 @@ export class AiService {
       }
     }
 
+    // Gap 2: Look up prior legal audit report for this plot to inject context into commercial valuation
+    let legalAuditContext = '';
+    if (data.name) {
+      try {
+        const existingLands = await prisma.land.findMany({
+          where: { companyId, title: data.name },
+          include: { aiScores: { orderBy: { createdAt: 'desc' }, take: 5 } },
+          take: 1
+        });
+        if (existingLands.length > 0) {
+          const legalScore = existingLands[0].aiScores.find(
+            (s: any) => s.summary && s.summary.trim().startsWith('{')
+          );
+          if (legalScore) {
+            const parsed = JSON.parse(legalScore.summary);
+            const ar = parsed.auditReport || parsed;
+            legalAuditContext = `
+      PRIOR LEGAL DUE DILIGENCE AUDIT (Step 4 results — factor these into your scoring):
+      - Overall Legal Risk Level: ${ar.overallRisk || 'Unknown'}
+      - Overall Risk Score: ${ar.overallRiskScore || 'N/A'} / 100
+      - Owner Verification: ${ar.ownerVerification?.badge || 'Not run'}
+      - Encumbrance Check: ${ar.encumbranceCheck?.badge || 'Not run'}
+      - Court Case Detection: ${ar.courtCaseDetection?.badge || 'Not run'}
+      - Fraud Detection: ${ar.fraudDetection?.badge || 'Not run'}
+      - Duplicate Ownership: ${ar.duplicateOwnership?.badge || 'Not run'}
+      - Expired Documents: ${ar.expiredDocuments?.badge || 'Not run'}
+      INSTRUCTION: If Legal Risk is "High", reduce the aiScore by at least 1.5 points and set Investment Recommendation to "Needs Review" or "Avoid". If Medium, reduce by 0.5 and add appropriate caution language in aiRiskAnalysis.`;
+          }
+        }
+      } catch (e) {
+        // Non-critical — silently skip if legal context lookup fails
+      }
+    }
+
     const prompt = `
       You are an AI Land Acquisition Expert working for a Construction ERP.
       Analyze the following land data, uploaded documents, soil reports, legal documents, and location information to help real estate developers make investment decisions.
@@ -464,6 +513,7 @@ export class AiService {
       ${data.chatPrompt ? `"${data.chatPrompt}"` : 'None provided'}
 
       ${data.additionalNotes ? `- Additional Context/User Instructions:\n"${data.additionalNotes}"` : ''}
+      ${legalAuditContext}
       
       If a soil report is attached, analyze it to determine soil load bearing capacity and foundation complexity.
       If a title deed/encumbrance certificate is attached, scan it for legal disputes, mortgages, or active warning flags.
@@ -615,6 +665,16 @@ export class AiService {
       }
     });
 
+    // Gap 5: Re-link any vault documents already saved under this plot's title to the new land.id
+    try {
+      await prisma.documentCatalog.updateMany({
+        where: { companyId, module: 'LAND', referenceId: title },
+        data: { referenceId: land.id }
+      });
+    } catch (e) {
+      // Non-critical — proceed even if vault link migration fails
+    }
+
     if (data.owners && data.owners.length > 0) {
       for (const ownerData of data.owners) {
         let owner = await prisma.landOwner.findFirst({
@@ -742,6 +802,157 @@ export class AiService {
       createdAt: land.createdAt,
       updatedAt: land.updatedAt
     };
+  }
+
+  async auditLandDocuments(
+    companyId: string,
+    data: {
+      landId?: string;
+      documents: { name: string; url: string; type: string }[];
+    }
+  ) {
+    const resolvedFiles: { base64: string; mimeType: string }[] = [];
+    
+    // Resolve all files to base64
+    for (const doc of data.documents) {
+      const resolved = await this.resolveFileAttachment({ url: doc.url, mimeType: 'application/pdf' });
+      if (resolved) {
+        resolvedFiles.push(resolved);
+      }
+    }
+
+    const prompt = `
+      You are an AI Land Acquisitions Lawyer, Geotechnical Engineer, and Land Due Diligence Auditor.
+      Analyze the attached files to verify land ownership validity, legal liabilities, zoning restrictions, soil capabilities, and potential fraud or inconsistencies.
+      
+      We have attached ${resolvedFiles.length} files for analysis in the exact order below:
+      ${data.documents.map((doc, idx) => `${idx + 1}. File Name: "${doc.name}" (Type: "${doc.type}")`).join('\n')}
+      
+      Please perform the following 11 checks in detail. Compare values across files and report any differences:
+      Check 1: Owner Name Verification. Match owner names across all ownership/legal documents. Check for matching, spelling differences, or name mismatches (e.g. 'Mahesh Patil' vs 'Ramesh Patil').
+      Check 2: Survey Number Verification. Match survey numbers.
+      Check 3: Area size Verification. Check if area sizes match across documents.
+      Check 4: Signature Verification. Verify if signature lines exist and are signed.
+      Check 5: Registration Stamp & Date Verification. Verify seal and stamp details.
+      Check 6: Encumbrance/Mortgage verification. Check if there are active mortgages, bank loans, or charges.
+      Check 7: Pending Court litigation verification. Check for key terms like "Stay Order", "Litigation", "Civil Suit", "High Court".
+      Check 8: Duplicate Ownership verification. Check mutation chain for conflicting claims.
+      Check 9: Document validity expiration check.
+      Check 10: Missing Document list check. Check what critical documents are missing from this list of standard due diligence documents (7/12, Sale Deed, EC, Soil Report, Property Card).
+      Check 11: Document Alteration and Fraud detection (font mismatches, OCR alignment anomalies, edited dates, unusual spacing, missing official seals).
+      
+      You must respond in strict JSON format matching this schema:
+      {
+        "documentsCount": ${data.documents.length},
+        "overallRisk": "Low" | "Medium" | "High",
+        "overallRiskScore": <number between 0 and 100 representing risk score>,
+        "ownerVerification": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Owner Verification Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "surveyVerification": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Survey Number Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "areaVerification": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Area Verification Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "signatureVerification": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Signature Verification Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "stampVerification": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Stamp Verification Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "encumbranceCheck": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Encumbrance Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "courtCaseDetection": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Court Case Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "duplicateOwnership": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Duplicate Ownership Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "expiredDocuments": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Document Expiry Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "missingDocuments": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Missing Documents Status",
+          "details": "<concise 2-3 sentence analysis of findings>",
+          "missingList": [<array of missing standard documents, e.g. ["Encumbrance Certificate", "Property Card"]>]
+        },
+        "fraudDetection": {
+          "status": "success" | "warning" | "danger",
+          "badge": "Fraud/Alteration Status",
+          "details": "<concise 2-3 sentence analysis of findings>"
+        },
+        "recommendations": [
+          "<actionable recommendation 1>",
+          "<actionable recommendation 2>"
+        ],
+        "extractedSummary": {
+          "owner": "<extracted owner name>",
+          "surveyNumber": "<extracted survey number>",
+          "area": "<extracted area with units>",
+          "landType": "<extracted land type, e.g. Agricultural, Residential>",
+          "mortgage": "Yes" | "No",
+          "courtCase": "Yes" | "No",
+          "soil": "<extracted soil type and load bearing capacity details, with non-technical foundation recommendation>"
+        }
+      }
+
+      CRITICAL SYSTEM INSTRUCTIONS (YOU MUST COMPLY):
+      1. Keep every details value concise (max 2-3 sentences).
+      2. Respond with ONLY the raw JSON object. Do not wrap it in markdown block tags like \`\`\`json.
+    `;
+
+    const aiResponseText = await this.askGeminiWithVision(
+      prompt,
+      resolvedFiles,
+      "You are a professional real estate legal advisor and geotechnical structural engineer."
+    );
+
+    let auditReport: any;
+    try {
+      auditReport = this.parseGeminiJson(aiResponseText);
+    } catch (e) {
+      console.error('Failed to parse Gemini response as JSON. Raw text was:', aiResponseText);
+      throw new Error('Gemini did not return a valid JSON response. Details: ' + aiResponseText);
+    }
+
+    // Persist in DB if landId is provided
+    if (data.landId) {
+      await prisma.landAIScore.create({
+        data: {
+          landId: data.landId,
+          overallScore: Math.max(1, Math.min(10, Math.round((100 - auditReport.overallRiskScore) / 10))),
+          developmentScore: 8,
+          riskScore: Math.max(1, Math.min(10, Math.round(auditReport.overallRiskScore / 10))),
+          appreciationScore: 8,
+          recommendedPrice: 0,
+          futureValue: 0,
+          summary: JSON.stringify({ auditReport })
+        }
+      });
+    }
+
+    return auditReport;
   }
 
   async updateLandPlot(
