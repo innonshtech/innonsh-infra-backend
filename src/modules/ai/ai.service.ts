@@ -1589,16 +1589,20 @@ export class AiService {
       financialDetails: {
         landValue,
         constructionCost,
-        approvalCost: Number(clientMeta.financialDetails?.approvalCost) || 2000000,
-        marketingCost: Number(clientMeta.financialDetails?.marketingCost) || 3000000,
-        miscellaneousCost: Number(clientMeta.financialDetails?.miscellaneousCost) || 5000000,
-        estimatedRevenue: (constructionCost + landValue) * 1.5,
-        estimatedProfit: ((constructionCost + landValue) * 1.5) - (constructionCost + landValue + 10000000),
-        roi: 47.6,
-        breakEvenPeriod: 3.5,
-        escrowAccountNumber: clientMeta.financialDetails?.escrowAccountNumber || '999888777123',
-        escrowBankName: clientMeta.financialDetails?.escrowBankName || 'HDFC Bank Ltd',
-        escrowAgent: 'HDFC Trustee Services'
+        approvalCost: Number(clientMeta.financialDetails?.approvalCost) || 0,
+        marketingCost: Number(clientMeta.financialDetails?.marketingCost) || 0,
+        miscellaneousCost: Number(clientMeta.financialDetails?.miscellaneousCost) || 0,
+        estimatedRevenue: Number(clientMeta.financialDetails?.expectedRevenue) || 0,
+        estimatedProfit: Number(clientMeta.financialDetails?.expectedRevenue) 
+          ? (Number(clientMeta.financialDetails.expectedRevenue) - (constructionCost + landValue + Number(clientMeta.financialDetails.approvalCost || 0) + Number(clientMeta.financialDetails.marketingCost || 0) + Number(clientMeta.financialDetails.miscellaneousCost || 0)))
+          : 0,
+        roi: Number(clientMeta.financialDetails?.expectedRevenue)
+          ? Math.round(((Number(clientMeta.financialDetails.expectedRevenue) - (constructionCost + landValue + Number(clientMeta.financialDetails.approvalCost || 0) + Number(clientMeta.financialDetails.marketingCost || 0) + Number(clientMeta.financialDetails.miscellaneousCost || 0))) / (constructionCost + landValue + Number(clientMeta.financialDetails.approvalCost || 0) + Number(clientMeta.financialDetails.marketingCost || 0) + Number(clientMeta.financialDetails.miscellaneousCost || 0))) * 1000) / 10
+          : 0,
+        breakEvenPeriod: 0,
+        escrowAccountNumber: clientMeta.financialDetails?.escrowAccountNumber || '',
+        escrowBankName: clientMeta.financialDetails?.escrowBankName || '',
+        escrowAgent: clientMeta.financialDetails?.escrowBankName ? 'Escrow Agent Partner' : ''
       },
       revenueSharingDetails: {
         builderShare: Number(analysis.profitSharingDetails?.builderShare) || Number(clientMeta.revenueSharingDetails?.builderShare) || 60,
@@ -1606,8 +1610,8 @@ export class AiService {
         investorShare: Number(analysis.profitSharingDetails?.investorShare) || Number(clientMeta.revenueSharingDetails?.investorShare) || 0,
         profitDistributionType: clientMeta.revenueSharingDetails?.profitDistributionType || 'Revenue',
         paymentFrequency: clientMeta.revenueSharingDetails?.paymentFrequency || 'Quarterly',
-        ownerAllocatedUnits: clientMeta.revenueSharingDetails?.ownerAllocatedUnits || 'Flats 101, 102, 201, 202, Shops A & B',
-        builderAllocatedUnits: clientMeta.revenueSharingDetails?.builderAllocatedUnits || 'Flats 301 to 1004, Commercial Parking 1-15'
+        ownerAllocatedUnits: clientMeta.revenueSharingDetails?.ownerAllocatedUnits || '',
+        builderAllocatedUnits: clientMeta.revenueSharingDetails?.builderAllocatedUnits || ''
       },
       responsibilities: {
         builder: clientMeta.responsibilities?.builder || ["Construction", "Project Management", "Approvals", "Marketing", "Sales", "Quality Control"],
@@ -1618,57 +1622,110 @@ export class AiService {
         agreementNumber: clientMeta.agreementDetails?.agreementNumber || `JDA-${Date.now().toString().substring(7)}`,
         agreementDate: clientMeta.agreementDetails?.agreementDate || new Date().toISOString().split('T')[0],
         validTill: clientMeta.agreementDetails?.validTill || new Date(Date.now() + 4 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        agreementStatus: clientMeta.agreementDetails?.agreementStatus || 'Signed',
-        stampDutyPayer: clientMeta.agreementDetails?.stampDutyPayer || 'Builder',
-        stampDutyAmount: Number(clientMeta.agreementDetails?.stampDutyAmount) || 750000,
+        agreementStatus: clientMeta.agreementDetails?.agreementStatus || 'Draft',
+        stampDutyPayer: clientMeta.agreementDetails?.stampDutyPayer || 'Shared Equally',
+        stampDutyAmount: Number(clientMeta.agreementDetails?.stampDutyAmount) || 0,
         arbitrationSeat: clientMeta.agreementDetails?.arbitrationSeat || 'Pune, Maharashtra',
         governingJurisdiction: clientMeta.agreementDetails?.governingJurisdiction || 'Bombay High Court'
       },
       legalChecklist: {
-        saleDeed: clientMeta.legalChecklist?.saleDeed !== undefined ? clientMeta.legalChecklist.saleDeed : true,
-        sevenTwelve: clientMeta.legalChecklist?.sevenTwelve !== undefined ? clientMeta.legalChecklist.sevenTwelve : true,
-        ec: clientMeta.legalChecklist?.ec !== undefined ? clientMeta.legalChecklist.ec : true,
-        titleReport: clientMeta.legalChecklist?.titleReport !== undefined ? clientMeta.legalChecklist.titleReport : true,
-        poa: clientMeta.legalChecklist?.poa !== undefined ? clientMeta.legalChecklist.poa : true,
+        saleDeed: clientMeta.legalChecklist?.saleDeed !== undefined ? clientMeta.legalChecklist.saleDeed : false,
+        sevenTwelve: clientMeta.legalChecklist?.sevenTwelve !== undefined ? clientMeta.legalChecklist.sevenTwelve : false,
+        ec: clientMeta.legalChecklist?.ec !== undefined ? clientMeta.legalChecklist.ec : false,
+        titleReport: clientMeta.legalChecklist?.titleReport !== undefined ? clientMeta.legalChecklist.titleReport : false,
+        poa: clientMeta.legalChecklist?.poa !== undefined ? clientMeta.legalChecklist.poa : false,
         noc: clientMeta.legalChecklist?.noc !== undefined ? clientMeta.legalChecklist.noc : false,
-        taxReceipt: clientMeta.legalChecklist?.taxReceipt !== undefined ? clientMeta.legalChecklist.taxReceipt : true
+        taxReceipt: clientMeta.legalChecklist?.taxReceipt !== undefined ? clientMeta.legalChecklist.taxReceipt : false
       },
       aiAnalysis: {
-        aiJvScore: 88,
-        fairnessScore: 85,
-        legalScore: 90,
-        financialScore: 87,
-        riskScore: 20,
-        profitabilityScore: 92,
-        confidenceScore: 95
+        aiJvScore: 85,
+        fairnessScore: 80,
+        legalScore: 85,
+        financialScore: 80,
+        riskScore: 25,
+        profitabilityScore: 85,
+        confidenceScore: 90
       },
       aiRecommendation: {
-        recommendation: 'Proceed with Caution',
-        suggestedJvModel: 'Revenue Share',
+        recommendation: 'Negotiate Terms',
+        suggestedJvModel: clientMeta.basicDetails?.jvType || 'Revenue Share',
         negotiationScope: 'Medium',
         missingClauses: ['Force Majeure details', 'Termination exits timeline'],
-        suggestedImprovements: 'Consider establishing a joint escrow management committee to review construction cost escalations.'
+        suggestedImprovements: 'Establish a clear joint escrow account governance structure before signing.'
       },
       riskAssessment: {
         legalRisk: 'Low',
         financialRisk: 'Medium',
         marketRisk: 'Medium',
-        executionRisk: 'Low',
+        executionRisk: 'Medium',
         partnerRisk: 'Low',
         overallRisk: 'Medium'
       },
-      milestones: [
-        { id: "m1", name: "Government Approvals Clearance", plannedDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
-        { id: "m2", name: "Excavation & Foundation clearance", plannedDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
-        { id: "m3", name: "Structural RCC Framework completion", plannedDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
-        { id: "m4", name: "Finishing & Interior handovers", plannedDate: new Date(Date.now() + 720 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" }
-      ],
-      paymentSchedule: [
-        { id: "p1", installment: 1, amount: landValue * 0.1, dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
-        { id: "p2", installment: 2, amount: constructionCost * 0.2, dueDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
-        { id: "p3", installment: 3, amount: constructionCost * 0.4, dueDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
-        { id: "p4", installment: 4, amount: constructionCost * 0.4, dueDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" }
-      ]
+      milestones: (() => {
+        const jvTypeSelected = clientMeta.basicDetails?.jvType || 'Revenue Share';
+        if (jvTypeSelected === 'Area Share') {
+          return [
+            { id: "m1", name: "Land Title Due Diligence & POA Registration", plannedDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Landowner" },
+            { id: "m2", name: "RERA Project Approval & Municipal NOCs", plannedDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m3", name: "Plinth & RCC Structure Phase Handover", plannedDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m4", name: "Tower Handovers & Unit Deed Registrations", plannedDate: new Date(Date.now() + 720 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" }
+          ];
+        } else if (jvTypeSelected === 'Revenue Share') {
+          return [
+            { id: "m1", name: "Joint Escrow Account Activation", plannedDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Both Partners" },
+            { id: "m2", name: "RERA Approval & Project Launch", plannedDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m3", name: "Sales Booking Milestone (First 25% Units)", plannedDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m4", name: "Final Escrow Distribution & Completion Audit", plannedDate: new Date(Date.now() + 720 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Both Partners" }
+          ];
+        } else if (jvTypeSelected === 'Profit Share') {
+          return [
+            { id: "m1", name: "Regulatory Project Clearances", plannedDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m2", name: "Excavation & Sub-structure RCC", plannedDate: new Date(Date.now() + 300 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m3", name: "Half-yearly Project Cost & Expense Audit", plannedDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Both Partners" },
+            { id: "m4", name: "Project Completion & Profit Book Settlement", plannedDate: new Date(Date.now() + 720 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Both Partners" }
+          ];
+        } else { // Hybrid
+          return [
+            { id: "m1", name: "Minimum Guarantee Advance Disbursement", plannedDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m2", name: "Sanctions, Approvals & Plinth Completion", plannedDate: new Date(Date.now() + 240 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m3", name: "Minimum Guarantee Balance Settlement", plannedDate: new Date(Date.now() + 480 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Builder" },
+            { id: "m4", name: "Profit Upside Distribution Audit", plannedDate: new Date(Date.now() + 720 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], actualDate: null, status: "Pending", responsibleParty: "Both Partners" }
+          ];
+        }
+      })(),
+      paymentSchedule: (() => {
+        const jvTypeSelected = clientMeta.basicDetails?.jvType || 'Revenue Share';
+        if (jvTypeSelected === 'Area Share') {
+          const landownerUnits = clientMeta.revenueSharingDetails?.ownerAllocatedUnits || "Allocated Units";
+          return [
+            { id: "p1", installment: 1, amount: 0, desc: `Phase 1 Handover: ${landownerUnits}`, dueDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
+            { id: "p2", installment: 2, amount: 0, desc: `Final Possession: Remaining Allocated Units`, dueDate: new Date(Date.now() + 720 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" }
+          ];
+        } else if (jvTypeSelected === 'Revenue Share') {
+          const totalRev = Number(clientMeta.financialDetails?.expectedRevenue) || 0;
+          const ownerSplitVal = Number(clientMeta.revenueSharingDetails?.landOwnerShare) || 35;
+          const totalOwnerPayout = (totalRev * ownerSplitVal) / 100;
+          return [
+            { id: "p1", installment: 1, amount: totalOwnerPayout * 0.2, desc: "Tranche 1 (Sales Commencement)", dueDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
+            { id: "p2", installment: 2, amount: totalOwnerPayout * 0.4, desc: "Tranche 2 (Mid-way Escrow Release)", dueDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
+            { id: "p3", installment: 3, amount: totalOwnerPayout * 0.4, desc: "Tranche 3 (Final Settlement)", dueDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" }
+          ];
+        } else if (jvTypeSelected === 'Profit Share') {
+          const estimatedProfitVal = (Number(clientMeta.financialDetails?.expectedRevenue) || 0) - (constructionCost + landValue + (Number(clientMeta.financialDetails?.approvalCost)||0) + (Number(clientMeta.financialDetails?.marketingCost)||0) + (Number(clientMeta.financialDetails?.miscellaneousCost)||0));
+          const ownerSplitVal = Number(clientMeta.revenueSharingDetails?.landOwnerShare) || 40;
+          const totalOwnerProfit = Math.max(0, (estimatedProfitVal * ownerSplitVal) / 100);
+          return [
+            { id: "p1", installment: 1, amount: totalOwnerProfit * 0.3, desc: "First Audit Payout (50% Completion)", dueDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
+            { id: "p2", installment: 2, amount: totalOwnerProfit * 0.7, desc: "Final Audit Payout (Project Completion)", dueDate: new Date(Date.now() + 720 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" }
+          ];
+        } else { // Hybrid
+          const guaranteeVal = Number(clientMeta.financialDetails?.minGuarantee) || 0;
+          return [
+            { id: "p1", installment: 1, amount: guaranteeVal * 0.2, desc: "MG Signing Advance", dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" },
+            { id: "p2", installment: 2, amount: guaranteeVal * 0.8, desc: "MG Balance Settlement", dueDate: new Date(Date.now() + 360 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], paidDate: null, status: "Pending" }
+          ];
+        }
+      })()
     };
 
     // Save comparison analysis inside metadata
