@@ -9,7 +9,7 @@ const pool = new pg.Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  max: 3, // Limit database connections to 3 to prevent EMAXCONNSESSION on Supabase
+  max: 20, // Increase connection pool size to 20 since we are using transaction pooler on port 6543
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000
 });
