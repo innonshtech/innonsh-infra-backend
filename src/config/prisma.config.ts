@@ -8,7 +8,10 @@ const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  max: 3, // Limit database connections to 3 to prevent EMAXCONNSESSION on Supabase
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
 });
 
 const adapter = new PrismaPg(pool);
